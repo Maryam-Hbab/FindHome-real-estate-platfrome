@@ -68,10 +68,29 @@ export default function DashboardPage() {
           <CardContent>
             <p className="text-2xl font-bold">0</p>
             <Button asChild className="w-full mt-4">
-              <Link href="/properties">View Properties</Link>
+              {user?.role === "agent" ? (
+                <Link href="/properties/manage">Manage Properties</Link>
+              ) : (
+                <Link href="/properties">View Properties</Link>
+              )}
             </Button>
           </CardContent>
         </Card>
+
+        {user?.role === "agent" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Add Property</CardTitle>
+              <CardDescription>Create a new listing</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">+</p>
+              <Button asChild className="w-full mt-4">
+                <Link href="/properties/create">Add New Property</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-2">
@@ -174,4 +193,3 @@ function DashboardSkeleton() {
     </div>
   )
 }
-

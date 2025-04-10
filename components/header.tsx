@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
-import { Menu, X, User, LogOut, Home, MessageSquare, Bell, Settings } from "lucide-react"
+import { Menu, X, User, LogOut, Home, MessageSquare, Bell, Settings, Building, Plus } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +46,16 @@ export default function Header() {
             <Link href="/resources" className="text-gray-600 hover:text-emerald-600 font-medium">
               Resources
             </Link>
+            {user?.role === "agent" && (
+              <>
+                <Link href="/properties/manage" className="text-gray-600 hover:text-emerald-600 font-medium">
+                  Manage Listings
+                </Link>
+                <Link href="/properties/create" className="text-gray-600 hover:text-emerald-600 font-medium">
+                  Add Property
+                </Link>
+              </>
+            )}
           </nav>
 
           {/* Desktop Auth Buttons */}
@@ -92,6 +102,22 @@ export default function Header() {
                         <span>Dashboard</span>
                       </Link>
                     </DropdownMenuItem>
+                    {user.role === "agent" && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/properties/manage" className="cursor-pointer w-full">
+                            <Building className="mr-2 h-4 w-4" />
+                            <span>Manage Properties</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/properties/create" className="cursor-pointer w-full">
+                            <Plus className="mr-2 h-4 w-4" />
+                            <span>Add Property</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/profile" className="cursor-pointer w-full">
                         <Settings className="mr-2 h-4 w-4" />
@@ -159,6 +185,24 @@ export default function Header() {
             >
               Resources
             </Link>
+            {user?.role === "agent" && (
+              <>
+                <Link
+                  href="/properties/manage"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Manage Listings
+                </Link>
+                <Link
+                  href="/properties/create"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Add Property
+                </Link>
+              </>
+            )}
           </div>
           <div className="pt-4 pb-3 border-t border-gray-200">
             {user ? (
@@ -244,4 +288,3 @@ export default function Header() {
     </header>
   )
 }
-
