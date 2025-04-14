@@ -9,8 +9,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Calendar, Heart, Share, Phone, Mail, Home, Info, FileText, Map, DollarSign } from "lucide-react"
-import PropertyMap from "@/components/property-map"
+import dynamic from "next/dynamic"
 import { useToast } from "@/components/ui/use-toast"
+import { ReportPropertyDialog } from "@/components/report-property-dialog"
+
+// Dynamically import PropertyMap with no SSR
+const PropertyMap = dynamic(() => import("@/components/property-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[400px] w-full flex items-center justify-center bg-gray-100">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-600"></div>
+    </div>
+  ),
+})
 
 // Mock property data
 const mockProperty = {
@@ -52,6 +63,9 @@ const mockProperty = {
     email: "jane.smith@realestate.com",
     image: "/placeholder.svg?height=200&width=200",
   },
+  lat: 40.7128,
+  lng: -74.006,
+  _id: "property123",
 }
 
 export default function PropertyDetailPage() {
@@ -363,10 +377,11 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="flex items-center space-x-2 mt-4">
                 <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleContactAgent}>
                   Contact Agent
                 </Button>
+                <ReportPropertyDialog propertyId={property._id} />
               </div>
             </CardContent>
           </Card>
@@ -474,4 +489,3 @@ export default function PropertyDetailPage() {
     </div>
   )
 }
-

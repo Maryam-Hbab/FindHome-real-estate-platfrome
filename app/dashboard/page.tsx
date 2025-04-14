@@ -92,6 +92,21 @@ export default function DashboardPage() {
           </Card>
         )}
 
+        {user?.role === "admin" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Moderation</CardTitle>
+              <CardDescription>Review property listings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">🛡️</p>
+              <Button asChild className="w-full mt-4">
+                <Link href="/admin/moderation">Moderation Dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Saved</CardTitle>

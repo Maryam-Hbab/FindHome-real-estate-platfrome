@@ -10,14 +10,14 @@ export interface IProperty extends mongoose.Document {
   zipCode: string
   location: {
     type: string
-    coordinates: [number, number] // [longitude, latitude]
+    coordinates: [number, number]
   }
   bedrooms: number
   bathrooms: number
   area: number
-  type: string
+  type: "House" | "Apartment" | "Condo" | "Townhouse" | "Land" | "Commercial"
   status: "For Sale" | "For Rent" | "Sold" | "Rented"
-  yearBuilt: number
+  yearBuilt?: number
   parkingSpaces: number
   features: string[]
   images: string[]
@@ -25,6 +25,18 @@ export interface IProperty extends mongoose.Document {
   agent: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt: Date
+  moderationStatus: "Pending" | "Approved" | "Rejected" | "Flagged"
+  moderationNotes?: string
+  reportCount: number
+  reports: [
+    {
+      userId: mongoose.Types.ObjectId
+      reason: string
+      timestamp: Date
+    },
+  ]
+  views: number
+  inquiries: number
 }
 
 const propertySchema = new mongoose.Schema({
@@ -40,6 +52,7 @@ const propertySchema = new mongoose.Schema({
   price: {
     type: Number,
     required: [true, "Price is required"],
+    min: [0, "Price must be positive"],
   },
   address: {
     type: String,
@@ -68,31 +81,34 @@ const propertySchema = new mongoose.Schema({
       default: "Point",
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true,
+      type: [Number],
+      required: [true, "Coordinates are required"],
     },
   },
   bedrooms: {
     type: Number,
-    required: [true, "Number of bedrooms is required"],
+    required: [true, "Bedrooms is required"],
+    min: [0, "Bedrooms must be positive"],
   },
   bathrooms: {
     type: Number,
-    required: [true, "Number of bathrooms is required"],
+    required: [true, "Bathrooms is required"],
+    min: [0, "Bathrooms must be positive"],
   },
   area: {
     type: Number,
     required: [true, "Area is required"],
+    min: [0, "Area must be positive"],
   },
   type: {
     type: String,
-    required: [true, "Property type is required"],
     enum: ["House", "Apartment", "Condo", "Townhouse", "Land", "Commercial"],
+    required: [true, "Property type is required"],
   },
   status: {
     type: String,
-    required: [true, "Status is required"],
     enum: ["For Sale", "For Rent", "Sold", "Rented"],
+    required: [true, "Status is required"],
   },
   yearBuilt: {
     type: Number,
@@ -126,19 +142,46 @@ const propertySchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-})
-
-// Create a geospatial index for location-based queries
-propertySchema.index({ location: "2dsphere" })
-
-// Update the updatedAt field on save
-propertySchema.pre("save", function (next) {
-  this.updatedAt = new Date()
-  next()
+  moderationStatus: {
+    type: String,
+    enum: ["Pending", "Approved", "Rejected", "Flagged"],
+    default: "Pending",
+  },
+  moderationNotes: {
+    type: String,
+  },
+  reportCount: {
+    type: Number,
+    default: 0,
+  },
+  reports: [
+    {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      reason: {
+        type: String,
+        required: true,
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+  views: {
+    type: Number,
+    default: 0,
+  },
+  inquiries: {
+    type: Number,
+    default: 0,
+  },
 })
 
 // Check if model exists before creating a new one (for Next.js hot reloading)
 const Property = mongoose.models.Property || mongoose.model<IProperty>("Property", propertySchema)
 
 export default Property
-

@@ -22,6 +22,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider defaultTheme="light">
           <AuthProvider>
@@ -37,4 +40,3 @@ export default function RootLayout({
     </html>
   )
 }
-

@@ -19,9 +19,18 @@ export async function GET(request: Request) {
     const maxPrice = searchParams.get("maxPrice")
     const minBedrooms = searchParams.get("bedrooms")
     const featured = searchParams.get("featured")
+    const moderationStatus = searchParams.get("moderationStatus")
 
     // Build query
     const query: any = {}
+
+    // By default, only show approved properties to regular users
+    if (!moderationStatus) {
+      query.moderationStatus = "Approved"
+    } else {
+      // Allow admins to filter by moderation status
+      query.moderationStatus = moderationStatus
+    }
 
     if (location) {
       query.$or = [
@@ -109,10 +118,15 @@ export async function POST(request: Request) {
     // Parse request body
     const body = await request.json()
 
+    // Set initial moderation status
+    // If user is admin, auto-approve, otherwise set to pending
+    const moderationStatus = user.role === "admin" ? "Approved" : "Pending"
+
     // Create property
     const property = await Property.create({
       ...body,
       agent: user.id,
+      moderationStatus,
     })
 
     return NextResponse.json(property, { status: 201 })
@@ -121,4 +135,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create property" }, { status: 500 })
   }
 }
-
