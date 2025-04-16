@@ -23,51 +23,6 @@ const PropertyMap = dynamic(() => import("@/components/property-map"), {
   ),
 })
 
-// Mock property data
-const mockProperty = {
-  id: "1",
-  title: "Modern Apartment with City View",
-  description:
-    "This beautiful modern apartment offers stunning city views and a prime location. The open floor plan features a spacious living area, gourmet kitchen with stainless steel appliances, and a private balcony. The master bedroom includes a walk-in closet and en-suite bathroom. Additional amenities include in-unit laundry, central air conditioning, and access to the building's fitness center and rooftop terrace.",
-  price: 450000,
-  address: "123 Main St, New York, NY 10001",
-  bedrooms: 2,
-  bathrooms: 2,
-  area: 1200,
-  type: "Apartment",
-  status: "For Sale",
-  yearBuilt: 2015,
-  parkingSpaces: 1,
-  features: [
-    "Central Air Conditioning",
-    "In-unit Laundry",
-    "Balcony",
-    "Stainless Steel Appliances",
-    "Hardwood Floors",
-    "Walk-in Closet",
-    "Fitness Center",
-    "Rooftop Terrace",
-    "Elevator",
-    "Pet Friendly",
-  ],
-  images: [
-    "/placeholder.svg?height=600&width=800",
-    "/placeholder.svg?height=600&width=800",
-    "/placeholder.svg?height=600&width=800",
-    "/placeholder.svg?height=600&width=800",
-  ],
-  agent: {
-    id: "agent1",
-    name: "Jane Smith",
-    phone: "(555) 123-4567",
-    email: "jane.smith@realestate.com",
-    image: "/placeholder.svg?height=200&width=200",
-  },
-  lat: 40.7128,
-  lng: -74.006,
-  _id: "property123",
-}
-
 export default function PropertyDetailPage() {
   const params = useParams()
   const { toast } = useToast()
@@ -78,23 +33,33 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        // In a real app, this would be an API call
-        // const response = await fetch(`/api/properties/${params.id}`)
-        // const data = await response.json()
+        setLoading(true)
+        // Fetch the property data from the API using the ID from the URL
+        const response = await fetch(`/api/properties/${params.id}`)
 
-        // Using mock data for now
-        setTimeout(() => {
-          setProperty(mockProperty)
-          setLoading(false)
-        }, 1000)
+        if (!response.ok) {
+          throw new Error("Failed to fetch property")
+        }
+
+        const data = await response.json()
+        console.log("Fetched property data:", data)
+        setProperty(data)
       } catch (error) {
         console.error("Error fetching property:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load property details",
+          variant: "destructive",
+        })
+      } finally {
         setLoading(false)
       }
     }
 
-    fetchProperty()
-  }, [params.id])
+    if (params.id) {
+      fetchProperty()
+    }
+  }, [params.id, toast])
 
   const handleContactAgent = () => {
     toast({
@@ -117,6 +82,29 @@ export default function PropertyDetailPage() {
     })
   }
 
+  // Helper function to ensure image URLs are valid
+  const getImageUrl = (imageUrl: string) => {
+    if (!imageUrl) return "/placeholder.svg?height=600&width=800"
+
+    // If the image URL is already a full URL (starts with http or https), use it as is
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      return imageUrl
+    }
+
+    // If it's a blob URL (temporary), use a placeholder instead
+    if (imageUrl.startsWith("blob:")) {
+      return "/placeholder.svg?height=600&width=800"
+    }
+
+    // If it's a relative path starting with /, use it as is
+    if (imageUrl.startsWith("/")) {
+      return imageUrl
+    }
+
+    // Otherwise, assume it's a relative path and add a leading /
+    return `/${imageUrl}`
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -137,6 +125,10 @@ export default function PropertyDetailPage() {
     )
   }
 
+  // Ensure images array exists and has at least one item
+  const propertyImages =
+    property.images && property.images.length > 0 ? property.images : ["/placeholder.svg?height=600&width=800"]
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -151,7 +143,9 @@ export default function PropertyDetailPage() {
           <h1 className="text-3xl font-bold">{property.title}</h1>
           <div className="flex items-center text-gray-600 mt-1">
             <MapPin className="h-4 w-4 mr-1" />
-            <span>{property.address}</span>
+            <span>
+              {property.address}, {property.city}, {property.state} {property.zipCode}
+            </span>
           </div>
         </div>
 
@@ -171,30 +165,34 @@ export default function PropertyDetailPage() {
           <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
             <div className="relative h-[400px]">
               <Image
-                src={property.images[activeImageIndex] || "/placeholder.svg"}
+                src={getImageUrl(propertyImages[activeImageIndex]) || "/placeholder.svg"}
                 alt={property.title}
                 fill
                 className="object-cover"
+                unoptimized={propertyImages[activeImageIndex]?.startsWith("http")}
               />
             </div>
-            <div className="p-4 flex space-x-2 overflow-x-auto">
-              {property.images.map((image: string, index: number) => (
-                <div
-                  key={index}
-                  className={`relative h-20 w-32 flex-shrink-0 cursor-pointer ${
-                    index === activeImageIndex ? "ring-2 ring-emerald-600" : ""
-                  }`}
-                  onClick={() => setActiveImageIndex(index)}
-                >
-                  <Image
-                    src={image || "/placeholder.svg"}
-                    alt={`Property image ${index + 1}`}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              ))}
-            </div>
+            {propertyImages.length > 1 && (
+              <div className="p-4 flex space-x-2 overflow-x-auto">
+                {propertyImages.map((image: string, index: number) => (
+                  <div
+                    key={index}
+                    className={`relative h-20 w-32 flex-shrink-0 cursor-pointer ${
+                      index === activeImageIndex ? "ring-2 ring-emerald-600" : ""
+                    }`}
+                    onClick={() => setActiveImageIndex(index)}
+                  >
+                    <Image
+                      src={getImageUrl(image) || "/placeholder.svg"}
+                      alt={`Property image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      unoptimized={image?.startsWith("http")}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Property Details */}
@@ -241,7 +239,7 @@ export default function PropertyDetailPage() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-gray-500 text-sm">Year Built</span>
-                  <span className="font-medium">{property.yearBuilt}</span>
+                  <span className="font-medium">{property.yearBuilt || "N/A"}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-gray-500 text-sm">Parking</span>
@@ -253,12 +251,16 @@ export default function PropertyDetailPage() {
             <TabsContent value="features" className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-xl font-semibold mb-4">Property Features</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {property.features.map((feature: string, index: number) => (
-                  <div key={index} className="flex items-center">
-                    <div className="h-2 w-2 bg-emerald-600 rounded-full mr-2"></div>
-                    <span>{feature}</span>
-                  </div>
-                ))}
+                {property.features && property.features.length > 0 ? (
+                  property.features.map((feature: string, index: number) => (
+                    <div key={index} className="flex items-center">
+                      <div className="h-2 w-2 bg-emerald-600 rounded-full mr-2"></div>
+                      <span>{feature}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500">No features listed for this property.</p>
+                )}
               </div>
             </TabsContent>
 
@@ -297,53 +299,74 @@ export default function PropertyDetailPage() {
 
             <TabsContent value="map" className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="h-[400px] w-full">
-                <PropertyMap properties={[property]} />
+                {property.location && property.location.coordinates ? (
+                  <PropertyMap
+                    properties={[
+                      {
+                        ...property,
+                        lat: property.location.coordinates[1],
+                        lng: property.location.coordinates[0],
+                      },
+                    ]}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full bg-gray-100">
+                    <p className="text-gray-500">No location data available for this property.</p>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
 
           {/* Financial Calculator */}
-          <Card className="mb-8">
-            <CardContent className="p-6">
-              <div className="flex items-center mb-4">
-                <DollarSign className="h-5 w-5 text-emerald-600 mr-2" />
-                <h2 className="text-xl font-semibold">Mortgage Calculator</h2>
-              </div>
+          {property.status === "For Sale" && (
+            <Card className="mb-8">
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  <DollarSign className="h-5 w-5 text-emerald-600 mr-2" />
+                  <h2 className="text-xl font-semibold">Mortgage Calculator</h2>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <p className="text-gray-500 mb-1">Home Price</p>
-                  <p className="font-semibold">${property.price.toLocaleString()}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <p className="text-gray-500 mb-1">Home Price</p>
+                    <p className="font-semibold">${property.price.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Down Payment (20%)</p>
+                    <p className="font-semibold">${(property.price * 0.2).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Loan Amount</p>
+                    <p className="font-semibold">${(property.price * 0.8).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Interest Rate</p>
+                    <p className="font-semibold">4.5%</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Loan Term</p>
+                    <p className="font-semibold">30 years</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Monthly Payment</p>
+                    <p className="font-semibold text-emerald-600">
+                      $
+                      {Math.round(
+                        (property.price * 0.8 * 0.00456) / (1 - Math.pow(1 + 0.00456, -360)),
+                      ).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Down Payment (20%)</p>
-                  <p className="font-semibold">${(property.price * 0.2).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Loan Amount</p>
-                  <p className="font-semibold">${(property.price * 0.8).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Interest Rate</p>
-                  <p className="font-semibold">4.5%</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Loan Term</p>
-                  <p className="font-semibold">30 years</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Monthly Payment</p>
-                  <p className="font-semibold text-emerald-600">$1,824</p>
-                </div>
-              </div>
 
-              <div className="mt-4">
-                <Button variant="outline" className="w-full">
-                  Customize Calculator
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="mt-4">
+                  <Button variant="outline" className="w-full">
+                    Customize Calculator
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -354,14 +377,17 @@ export default function PropertyDetailPage() {
               <div className="flex items-center mb-4">
                 <div className="relative h-16 w-16 rounded-full overflow-hidden mr-4">
                   <Image
-                    src={property.agent.image || "/placeholder.svg"}
-                    alt={property.agent.name}
+                    src={property.agent?.profileImage || "/placeholder.svg?height=200&width=200"}
+                    alt={property.agent ? `${property.agent.firstName} ${property.agent.lastName}` : "Agent"}
                     fill
                     className="object-cover"
+                    unoptimized={property.agent?.profileImage?.startsWith("http")}
                   />
                 </div>
                 <div>
-                  <h3 className="font-medium">{property.agent.name}</h3>
+                  <h3 className="font-medium">
+                    {property.agent ? `${property.agent.firstName} ${property.agent.lastName}` : "Agent Name"}
+                  </h3>
                   <p className="text-gray-600 text-sm">Real Estate Agent</p>
                 </div>
               </div>
@@ -369,11 +395,11 @@ export default function PropertyDetailPage() {
               <div className="space-y-3 mb-4">
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 text-emerald-600 mr-2" />
-                  <span>{property.agent.phone}</span>
+                  <span>{property.agent?.phoneNumber || "(555) 123-4567"}</span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 text-emerald-600 mr-2" />
-                  <span>{property.agent.email}</span>
+                  <span>{property.agent?.email || "agent@realestate.com"}</span>
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import bcrypt from "bcryptjs"
+import bcryptjs from "bcryptjs" // Changed from bcrypt to bcryptjs
 
 export interface IUser extends mongoose.Document {
   email: string
@@ -69,20 +69,26 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next()
 
   try {
-    const salt = await bcrypt.genSalt(10)
-    this.password = await bcrypt.hash(this.password, salt)
+    const salt = await bcryptjs.genSalt(10) // Changed from bcrypt to bcryptjs
+    this.password = await bcryptjs.hash(this.password, salt) // Changed from bcrypt to bcryptjs
     next()
   } catch (error: any) {
     next(error)
   }
 })
 
-// Method to compare passwords
+// Check the comparePassword method to ensure it's working correctly
 userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   try {
-    return await bcrypt.compare(candidatePassword, this.password)
+    console.log("Comparing passwords");
+    
+    // Check if the hash starts with $2a$ (bcryptjs) or $2b$ (bcrypt)
+    const isMatch = await bcryptjs.compare(candidatePassword, this.password);
+    console.log("Password match result:", isMatch);
+    return isMatch;
   } catch (error) {
-    return false
+    console.error("Error comparing passwords:", error);
+    return false;
   }
 }
 
@@ -90,4 +96,3 @@ userSchema.methods.comparePassword = async function (candidatePassword: string):
 const User = mongoose.models.User || mongoose.model<IUser>("User", userSchema)
 
 export default User
-

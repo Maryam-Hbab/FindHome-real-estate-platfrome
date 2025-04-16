@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import dbConnect from "@/lib/db"
 import Property from "@/models/property"
 import { getUserFromToken } from "@/lib/auth"
+import { createAuditLog } from "@/lib/audit-logger"
+import { moderatePropertyListing } from "@/lib/content-moderation"
 
 export async function GET(request: Request) {
   try {
@@ -118,16 +120,48 @@ export async function POST(request: Request) {
     // Parse request body
     const body = await request.json()
 
-    // Set initial moderation status
-    // If user is admin, auto-approve, otherwise set to pending
-    const moderationStatus = user.role === "admin" ? "Approved" : "Pending"
+    // Moderate the property content
+    const moderationResult = moderatePropertyListing({
+      title: body.title,
+      description: body.description,
+    })
 
-    // Create property
+    // Set initial moderation status based on result and user role
+    // If user is admin, auto-approve, otherwise check moderation result
+    let moderationStatus = user.role === "admin" ? "Approved" : "Pending"
+
+    // If content is flagged, mark it for review
+    if (moderationResult.flagged) {
+      moderationStatus = "Flagged"
+    }
+
+    // Create property with moderation status
     const property = await Property.create({
       ...body,
       agent: user.id,
       moderationStatus,
+      moderationNotes: moderationResult.flagged
+        ? `Flagged for review. Prohibited terms: ${moderationResult.prohibitedTerms.join(", ")}`
+        : undefined,
     })
+
+    // Create audit log
+    await createAuditLog({
+      action: "property_created",
+      userId: user.id,
+      targetType: "property",
+      targetId: property._id,
+      details: {
+        propertyTitle: property.title,
+        moderationStatus,
+      },
+    })
+
+    // If property is pending (created by agent), notify admins
+    if (moderationStatus === "Pending") {
+      // You can implement notification logic here
+      // This could be a call to a notification service
+    }
 
     return NextResponse.json(property, { status: 201 })
   } catch (error) {

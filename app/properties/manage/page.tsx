@@ -1,26 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
-import { Plus, MoreHorizontal, Edit, Trash, Eye, ArrowUpDown, DollarSign, Home, Users } from "lucide-react"
+import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react"
+import { AppealPropertyDialog } from "@/components/appeal-property-dialog"
 
-// Define property type
 interface Property {
   _id: string
   title: string
@@ -28,30 +21,13 @@ interface Property {
   address: string
   city: string
   state: string
-  status: "For Sale" | "For Rent" | "Sold" | "Rented"
+  zipCode: string
+  status: string
   type: string
-  bedrooms: number
-  bathrooms: number
-  area: number
+  images: string[]
+  moderationStatus: "Pending" | "Approved" | "Rejected" | "Flagged"
+  moderationNotes?: string
   createdAt: string
-  updatedAt: string
-  views: number // This would be tracked in a real application
-  inquiries: number // This would be tracked in a real application
-}
-
-// Define analytics data type
-interface AnalyticsData {
-  totalProperties: number
-  activeListings: number
-  soldProperties: number
-  rentedProperties: number
-  totalViews: number
-  totalInquiries: number
-  averagePrice: number
-  monthlyViews: { month: string; count: number }[]
-  monthlyInquiries: { month: string; count: number }[]
-  propertiesByType: { type: string; count: number }[]
-  propertiesByStatus: { status: string; count: number }[]
 }
 
 export default function ManagePropertiesPage() {
@@ -59,553 +35,280 @@ export default function ManagePropertiesPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [properties, setProperties] = useState<Property[]>([])
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("all")
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Property; direction: "asc" | "desc" } | null>(null)
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [activeTab, setActiveTab] = useState("All")
 
-  // Fetch properties
   useEffect(() => {
-    if (!loading && user) {
-      if (user.role !== "agent") {
-        router.push("/dashboard")
-        return
-      }
+    // If not loading and no user, redirect to login
+    if (!loading && !user) {
+      router.push("/auth/login")
+      return
+    }
 
-      const fetchProperties = async () => {
-        try {
-          const response = await fetch("/api/properties?agent=true")
-          if (!response.ok) throw new Error("Failed to fetch properties")
+    // If user is not an agent or admin, redirect to dashboard
+    if (!loading && user && user.role !== "agent" && user.role !== "admin") {
+      router.push("/dashboard")
+      return
+    }
 
-          const data = await response.json()
-          setProperties(data)
-          setFilteredProperties(data)
-
-          // Generate mock analytics data
-          generateMockAnalytics(data)
-
-          setIsLoading(false)
-        } catch (error) {
-          console.error("Error fetching properties:", error)
-          toast({
-            title: "Error",
-            description: "Failed to load properties. Please try again.",
-            variant: "destructive",
-          })
-          setIsLoading(false)
-        }
-      }
-
+    // Fetch properties
+    if (user) {
       fetchProperties()
     }
-  }, [user, loading, router, toast])
+  }, [user, loading, router, activeTab])
 
-  // Generate mock analytics data
-  const generateMockAnalytics = (properties: Property[]) => {
-    const totalProperties = properties.length
-    const activeListings = properties.filter((p) => p.status === "For Sale" || p.status === "For Rent").length
-    const soldProperties = properties.filter((p) => p.status === "Sold").length
-    const rentedProperties = properties.filter((p) => p.status === "Rented").length
+  const fetchProperties = async () => {
+    try {
+      setIsLoading(true)
 
-    // Calculate total views and inquiries (mock data)
-    const totalViews = properties.reduce((sum, p) => sum + (p.views || 0), 0)
-    const totalInquiries = properties.reduce((sum, p) => sum + (p.inquiries || 0), 0)
+      // Build query parameters
+      const params = new URLSearchParams()
 
-    // Calculate average price
-    const averagePrice = properties.length > 0 ? properties.reduce((sum, p) => sum + p.price, 0) / properties.length : 0
-
-    // Generate monthly data (mock)
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
-    const monthlyViews = months.map((month) => ({
-      month,
-      count: Math.floor(Math.random() * 100),
-    }))
-
-    const monthlyInquiries = months.map((month) => ({
-      month,
-      count: Math.floor(Math.random() * 50),
-    }))
-
-    // Count properties by type
-    const typeCount: Record<string, number> = {}
-    properties.forEach((p) => {
-      typeCount[p.type] = (typeCount[p.type] || 0) + 1
-    })
-
-    const propertiesByType = Object.entries(typeCount).map(([type, count]) => ({
-      type,
-      count,
-    }))
-
-    // Count properties by status
-    const statusCount: Record<string, number> = {}
-    properties.forEach((p) => {
-      statusCount[p.status] = (statusCount[p.status] || 0) + 1
-    })
-
-    const propertiesByStatus = Object.entries(statusCount).map(([status, count]) => ({
-      status,
-      count,
-    }))
-
-    setAnalyticsData({
-      totalProperties,
-      activeListings,
-      soldProperties,
-      rentedProperties,
-      totalViews,
-      totalInquiries,
-      averagePrice,
-      monthlyViews,
-      monthlyInquiries,
-      propertiesByType,
-      propertiesByStatus,
-    })
-  }
-
-  // Filter properties based on active tab
-  useEffect(() => {
-    if (properties.length === 0) return
-
-    switch (activeTab) {
-      case "all":
-        setFilteredProperties(properties)
-        break
-      case "forSale":
-        setFilteredProperties(properties.filter((p) => p.status === "For Sale"))
-        break
-      case "forRent":
-        setFilteredProperties(properties.filter((p) => p.status === "For Rent"))
-        break
-      case "sold":
-        setFilteredProperties(properties.filter((p) => p.status === "Sold"))
-        break
-      case "rented":
-        setFilteredProperties(properties.filter((p) => p.status === "Rented"))
-        break
-      default:
-        setFilteredProperties(properties)
-    }
-  }, [activeTab, properties])
-
-  // Handle sorting
-  const requestSort = (key: keyof Property) => {
-    let direction: "asc" | "desc" = "asc"
-
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc"
-    }
-
-    setSortConfig({ key, direction })
-
-    setFilteredProperties((prev) =>
-      [...prev].sort((a, b) => {
-        if (a[key] < b[key]) {
-          return direction === "asc" ? -1 : 1
-        }
-        if (a[key] > b[key]) {
-          return direction === "asc" ? 1 : -1
-        }
-        return 0
-      }),
-    )
-  }
-
-  // Handle property deletion
-  const handleDeleteProperty = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this property?")) {
-      try {
-        const response = await fetch(`/api/properties/${id}`, {
-          method: "DELETE",
-        })
-
-        if (!response.ok) throw new Error("Failed to delete property")
-
-        // Remove property from state
-        setProperties((prev) => prev.filter((p) => p._id !== id))
-        setFilteredProperties((prev) => prev.filter((p) => p._id !== id))
-
-        toast({
-          title: "Property Deleted",
-          description: "The property has been deleted successfully",
-        })
-      } catch (error) {
-        console.error("Error deleting property:", error)
-        toast({
-          title: "Error",
-          description: "Failed to delete property. Please try again.",
-          variant: "destructive",
-        })
+      // If viewing a specific moderation status
+      if (activeTab !== "All") {
+        params.append("moderationStatus", activeTab)
       }
+
+      // If user is admin, they can see all properties
+      // Otherwise, only show the agent's properties
+      if (user?.role !== "admin") {
+        params.append("agent", user?.id || "")
+      }
+
+      const response = await fetch(`/api/properties/manage?${params.toString()}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch properties")
+      }
+
+      const data = await response.json()
+      setProperties(data)
+    } catch (error) {
+      console.error("Error fetching properties:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load properties",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // Redirect if not an agent
-  if (!loading && user && user.role !== "agent") {
-    router.push("/dashboard")
-    return null
+  const handleDeleteProperty = async (propertyId: string) => {
+    if (!confirm("Are you sure you want to delete this property?")) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/properties/${propertyId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete property")
+      }
+
+      toast({
+        title: "Success",
+        description: "Property deleted successfully",
+      })
+
+      // Refresh properties
+      fetchProperties()
+    } catch (error) {
+      console.error("Error deleting property:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete property",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Pending":
+        return <Badge className="bg-amber-500">Pending Approval</Badge>
+      case "Approved":
+        return <Badge className="bg-green-500">Approved</Badge>
+      case "Rejected":
+        return <Badge className="bg-red-500">Rejected</Badge>
+      case "Flagged":
+        return <Badge className="bg-orange-500">Flagged</Badge>
+      default:
+        return null
+    }
+  }
+
+  // Format date function
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  }
+
+  if (loading || isLoading) {
+    return <PropertiesLoadingSkeleton />
   }
 
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manage Properties</h1>
-        <Button asChild>
+        <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
           <Link href="/properties/create">
-            <Plus className="mr-2 h-4 w-4" /> Add Property
+            <Plus className="mr-2 h-4 w-4" />
+            Add Property
           </Link>
         </Button>
       </div>
 
-      <Tabs defaultValue="properties" className="space-y-6">
+      <Tabs defaultValue="All" className="space-y-6" onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="properties">Properties</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="All">All</TabsTrigger>
+          <TabsTrigger value="Pending">Pending</TabsTrigger>
+          <TabsTrigger value="Approved">Approved</TabsTrigger>
+          <TabsTrigger value="Rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="Flagged">Flagged</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="properties" className="space-y-6">
+        <TabsContent value={activeTab}>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Your Properties</CardTitle>
-              <CardDescription>Manage and track all your property listings.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <TabsList>
-                  <TabsTrigger
-                    value="all"
-                    onClick={() => setActiveTab("all")}
-                    className={activeTab === "all" ? "bg-primary text-primary-foreground" : ""}
-                  >
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="forSale"
-                    onClick={() => setActiveTab("forSale")}
-                    className={activeTab === "forSale" ? "bg-primary text-primary-foreground" : ""}
-                  >
-                    For Sale
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="forRent"
-                    onClick={() => setActiveTab("forRent")}
-                    className={activeTab === "forRent" ? "bg-primary text-primary-foreground" : ""}
-                  >
-                    For Rent
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="sold"
-                    onClick={() => setActiveTab("sold")}
-                    className={activeTab === "sold" ? "bg-primary text-primary-foreground" : ""}
-                  >
-                    Sold
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="rented"
-                    onClick={() => setActiveTab("rented")}
-                    className={activeTab === "rented" ? "bg-primary text-primary-foreground" : ""}
-                  >
-                    Rented
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Your Properties</h2>
+              <p className="text-gray-600 mb-6">Manage and track all your property listings.</p>
 
-              {isLoading ? (
-                <div className="space-y-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : filteredProperties.length === 0 ? (
-                <div className="text-center py-10">
-                  <p className="text-muted-foreground">No properties found.</p>
-                  <Button asChild className="mt-4">
+              {properties.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <h3 className="text-lg font-medium mb-2">No properties found</h3>
+                  <p className="text-gray-500 mb-6">
+                    {activeTab === "All"
+                      ? "You haven't created any properties yet."
+                      : `You don't have any ${activeTab.toLowerCase()} properties.`}
+                  </p>
+                  <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
                     <Link href="/properties/create">
-                      <Plus className="mr-2 h-4 w-4" /> Add Property
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Property
                     </Link>
                   </Button>
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[300px]">
-                          <button className="flex items-center" onClick={() => requestSort("title")}>
-                            Title
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                          </button>
-                        </TableHead>
-                        <TableHead>
-                          <button className="flex items-center" onClick={() => requestSort("price")}>
-                            Price
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                          </button>
-                        </TableHead>
-                        <TableHead>
-                          <button className="flex items-center" onClick={() => requestSort("status")}>
-                            Status
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                          </button>
-                        </TableHead>
-                        <TableHead>
-                          <button className="flex items-center" onClick={() => requestSort("type")}>
-                            Type
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                          </button>
-                        </TableHead>
-                        <TableHead>
-                          <button className="flex items-center" onClick={() => requestSort("createdAt")}>
-                            Created
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                          </button>
-                        </TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredProperties.map((property) => (
-                        <TableRow key={property._id}>
-                          <TableCell className="font-medium">{property.title}</TableCell>
-                          <TableCell>${property.price.toLocaleString()}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                property.status === "For Sale"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : property.status === "For Rent"
-                                    ? "bg-green-100 text-green-800"
-                                    : property.status === "Sold"
-                                      ? "bg-purple-100 text-purple-800"
-                                      : "bg-orange-100 text-orange-800"
-                              }`}
-                            >
-                              {property.status}
-                            </span>
-                          </TableCell>
-                          <TableCell>{property.type}</TableCell>
-                          <TableCell>{new Date(property.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/properties/${property._id}`}>
-                                    <Eye className="mr-2 h-4 w-4" /> View
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/properties/edit/${property._id}`}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteProperty(property._id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash className="mr-2 h-4 w-4" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-6">
+                  {properties.map((property) => (
+                    <div
+                      key={property._id}
+                      className="flex flex-col md:flex-row border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                    >
+                      <div className="relative h-48 md:h-auto md:w-1/4">
+                        <Image
+                          src={property.images[0] || "/placeholder.svg"}
+                          alt={property.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="p-4 md:p-6 flex-1">
+                        <div className="flex flex-col md:flex-row justify-between mb-2">
+                          <h3 className="font-semibold text-lg">{property.title}</h3>
+                          <div className="mt-2 md:mt-0">{getStatusBadge(property.moderationStatus)}</div>
+                        </div>
+                        <p className="text-gray-600 mb-2">
+                          {property.address}, {property.city}, {property.state} {property.zipCode}
+                        </p>
+                        <p className="font-bold text-lg text-emerald-600 mb-3">
+                          ${property.price.toLocaleString()}
+                          {property.status === "For Rent" ? "/month" : ""}
+                        </p>
+
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                          <div className="text-sm text-gray-500 mb-2 md:mb-0">
+                            <span>Created: {formatDate(property.createdAt)}</span>
+                            <span className="mx-2">•</span>
+                            <span>{property.type}</span>
+                            <span className="mx-2">•</span>
+                            <span>{property.status}</span>
+                          </div>
+
+                          <div className="flex space-x-2">
+                            <Button asChild variant="outline" size="sm">
+                              <Link href={`/properties/${property._id}`}>View</Link>
+                            </Button>
+
+                            {property.moderationStatus === "Approved" && (
+                              <Button asChild variant="outline" size="sm">
+                                <Link href={`/properties/edit/${property._id}`}>
+                                  <Pencil className="mr-1 h-3 w-3" />
+                                  Edit
+                                </Link>
+                              </Button>
+                            )}
+
+                            <Button variant="outline" size="sm" onClick={() => handleDeleteProperty(property._id)}>
+                              <Trash2 className="mr-1 h-3 w-3" />
+                              Delete
+                            </Button>
+
+                            {property.moderationStatus === "Rejected" && (
+                              <AppealPropertyDialog
+                                propertyId={property._id}
+                                propertyTitle={property.title}
+                                onSuccess={fetchProperties}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {property.moderationStatus === "Rejected" && property.moderationNotes && (
+                          <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-md">
+                            <div className="flex items-start">
+                              <AlertTriangle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                              <div>
+                                <h4 className="font-medium text-red-800">Rejection Reason:</h4>
+                                <p className="text-red-700 text-sm">{property.moderationNotes}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Properties</CardTitle>
-                <Home className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? <Skeleton className="h-8 w-16" /> : analyticsData?.totalProperties || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">{analyticsData?.activeListings || 0} active listings</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-24" />
-                  ) : (
-                    `$${((analyticsData?.soldProperties || 0) * (analyticsData?.averagePrice || 0)).toLocaleString()}`
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  From {analyticsData?.soldProperties || 0} sold properties
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? <Skeleton className="h-8 w-16" /> : analyticsData?.totalViews || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {analyticsData?.totalViews && analyticsData.totalProperties
-                    ? Math.round(analyticsData.totalViews / analyticsData.totalProperties)
-                    : 0}{" "}
-                  views per property
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Inquiries</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? <Skeleton className="h-8 w-16" /> : analyticsData?.totalInquiries || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {analyticsData?.totalInquiries && analyticsData.totalProperties
-                    ? Math.round(analyticsData.totalInquiries / analyticsData.totalProperties)
-                    : 0}{" "}
-                  inquiries per property
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Property Distribution</CardTitle>
-                <CardDescription>Breakdown of your properties by type and status</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : (
-                  <div className="space-y-8">
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">By Property Type</h4>
-                      <div className="space-y-2">
-                        {analyticsData?.propertiesByType.map((item) => (
-                          <div key={item.type} className="flex items-center">
-                            <div className="w-1/3 text-sm">{item.type}</div>
-                            <div className="w-2/3 flex items-center gap-2">
-                              <div
-                                className="h-2 bg-primary rounded-full"
-                                style={{
-                                  width: `${(item.count / (analyticsData?.totalProperties || 1)) * 100}%`,
-                                }}
-                              />
-                              <span className="text-sm text-muted-foreground">{item.count}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">By Status</h4>
-                      <div className="space-y-2">
-                        {analyticsData?.propertiesByStatus.map((item) => (
-                          <div key={item.status} className="flex items-center">
-                            <div className="w-1/3 text-sm">{item.status}</div>
-                            <div className="w-2/3 flex items-center gap-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  item.status === "For Sale"
-                                    ? "bg-blue-500"
-                                    : item.status === "For Rent"
-                                      ? "bg-green-500"
-                                      : item.status === "Sold"
-                                        ? "bg-purple-500"
-                                        : "bg-orange-500"
-                                }`}
-                                style={{
-                                  width: `${(item.count / (analyticsData?.totalProperties || 1)) * 100}%`,
-                                }}
-                              />
-                              <span className="text-sm text-muted-foreground">{item.count}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance Trends</CardTitle>
-                <CardDescription>Monthly views and inquiries for your properties</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <Skeleton className="h-[300px] w-full" />
-                ) : (
-                  <div className="h-[300px] flex items-end gap-2">
-                    {analyticsData?.monthlyViews.map((item, index) => (
-                      <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-                        <div className="w-full flex flex-col items-center gap-1">
-                          <div
-                            className="w-full bg-blue-500 rounded-t-sm"
-                            style={{ height: `${(item.count / 100) * 200}px` }}
-                            title={`${item.count} views`}
-                          />
-                          <div
-                            className="w-full bg-green-500 rounded-t-sm"
-                            style={{
-                              height: `${(analyticsData.monthlyInquiries[index].count / 100) * 200}px`,
-                            }}
-                            title={`${analyticsData.monthlyInquiries[index].count} inquiries`}
-                          />
-                        </div>
-                        <span className="text-xs">{item.month}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="flex justify-center gap-6 mt-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full" />
-                    <span className="text-sm">Views</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full" />
-                    <span className="text-sm">Inquiries</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+function PropertiesLoadingSkeleton() {
+  return (
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-10 w-40" />
+      </div>
+
+      <Skeleton className="h-10 w-full mb-6" />
+
+      <Card>
+        <CardContent className="p-6">
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-full mb-6" />
+
+          <div className="space-y-6">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-48 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -1,23 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
-import { Eye, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import { CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import Image from "next/image"
 
 interface Property {
   _id: string
   title: string
+  description: string
+  price: number
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  type: string
+  status: string
+  images: string[]
   agent: {
+    _id: string
     firstName: string
     lastName: string
     email: string
@@ -25,106 +35,154 @@ interface Property {
   moderationStatus: "Pending" | "Approved" | "Rejected" | "Flagged"
   moderationNotes?: string
   reportCount: number
+  reports: Array<{
+    userId: string
+    reason: string
+    timestamp: string
+  }>
   createdAt: string
+  updatedAt: string
 }
 
-export default function ModerationPage() {
+export default function ModerationDashboardPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [properties, setProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("pending")
+  const [activeTab, setActiveTab] = useState("Pending")
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
-  const [moderationStatus, setModerationStatus] = useState<string>("")
-  const [moderationNotes, setModerationNotes] = useState<string>("")
+  const [moderationNotes, setModerationNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch properties
   useEffect(() => {
+    // If not loading and no user, redirect to login
     if (!loading && user) {
       if (user.role !== "admin") {
         router.push("/dashboard")
         return
       }
 
-      const fetchProperties = async () => {
-        try {
-          const response = await fetch(`/api/properties?moderationStatus=${activeTab}`)
-          if (!response.ok) throw new Error("Failed to fetch properties")
-
-          const data = await response.json()
-          setProperties(data)
-          setIsLoading(false)
-        } catch (error) {
-          console.error("Error fetching properties:", error)
-          toast({
-            title: "Error",
-            description: "Failed to load properties. Please try again.",
-            variant: "destructive",
-          })
-          setIsLoading(false)
-        }
-      }
-
       fetchProperties()
     }
-  }, [user, loading, router, toast, activeTab])
+  }, [user, loading, router, activeTab])
 
-  // Handle property selection
+  const fetchProperties = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/properties?moderationStatus=${activeTab}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch properties")
+      }
+
+      const data = await response.json()
+      setProperties(data)
+    } catch (error) {
+      console.error("Error fetching properties:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load properties",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSelectProperty = (property: Property) => {
     setSelectedProperty(property)
-    setModerationStatus(property.moderationStatus)
     setModerationNotes(property.moderationNotes || "")
   }
 
-  // Handle moderation update
-  const handleUpdateModeration = async () => {
+  const handleModerateProperty = async (action: "approve" | "reject") => {
     if (!selectedProperty) return
 
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`/api/admin/properties/${selectedProperty._id}/moderate`, {
-        method: "PUT",
+      const response = await fetch("/api/properties/moderate", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          moderationStatus,
-          moderationNotes,
+          propertyId: selectedProperty._id,
+          action,
+          notes: moderationNotes,
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to update moderation status")
+      if (!response.ok) {
+        throw new Error("Failed to moderate property")
+      }
 
       toast({
         title: "Success",
-        description: "Property moderation status updated successfully",
+        description: `Property ${action === "approve" ? "approved" : "rejected"} successfully`,
       })
 
       // Update property in the list
-      setProperties((prevProperties) =>
-        prevProperties.map((p) =>
-          p._id === selectedProperty._id ? { ...p, moderationStatus: moderationStatus as any, moderationNotes } : p,
-        ),
-      )
+      setProperties((prevProperties) => prevProperties.filter((p) => p._id !== selectedProperty._id))
 
-      // If the status changed, remove from current tab list
-      if (moderationStatus !== activeTab) {
-        setProperties((prevProperties) => prevProperties.filter((p) => p._id !== selectedProperty._id))
-        setSelectedProperty(null)
-      }
+      setSelectedProperty(null)
+
+      // Refresh properties
+      fetchProperties()
     } catch (error) {
-      console.error("Error updating moderation status:", error)
+      console.error("Error moderating property:", error)
       toast({
         title: "Error",
-        description: "Failed to update moderation status",
+        description: "Failed to moderate property",
         variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Helper function to ensure image URLs are valid
+  const getImageUrl = (imageUrl: string) => {
+    if (!imageUrl) return "/placeholder.svg?height=300&width=500"
+
+    // If the image URL is already a full URL (starts with http or https), use it as is
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      return imageUrl
+    }
+
+    // If it's a blob URL (temporary), use a placeholder instead
+    if (imageUrl.startsWith("blob:")) {
+      return "/placeholder.svg?height=300&width=500"
+    }
+
+    // If it's a relative path starting with /, use it as is
+    if (imageUrl.startsWith("/")) {
+      return imageUrl
+    }
+
+    // Otherwise, assume it's a relative path and add a leading /
+    return `/${imageUrl}`
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Pending":
+        return <Badge className="bg-amber-500">Pending</Badge>
+      case "Approved":
+        return <Badge className="bg-green-500">Approved</Badge>
+      case "Rejected":
+        return <Badge className="bg-red-500">Rejected</Badge>
+      case "Flagged":
+        return <Badge className="bg-purple-500">Flagged</Badge>
+      default:
+        return null
+    }
+  }
+
+  // Format date function
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return `${date.toLocaleDateString("en-US", { month: "short" })} ${date.getDate()}, ${date.getFullYear()}`
   }
 
   // Redirect if not an admin
@@ -138,7 +196,7 @@ export default function ModerationPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Content Moderation</h1>
         <Button asChild>
-          <Link href="/dashboard">Back to Dashboard</Link>
+          <Link href="/admin/dashboard">Back to Admin Dashboard</Link>
         </Button>
       </div>
 
@@ -146,23 +204,23 @@ export default function ModerationPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle>Properties</CardTitle>
+              <CardTitle>Property Submissions</CardTitle>
               <CardDescription>Review and moderate property listings</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="pending" className="space-y-4" onValueChange={setActiveTab}>
+              <Tabs defaultValue="Pending" className="space-y-4" onValueChange={setActiveTab}>
                 <TabsList>
-                  <TabsTrigger value="pending">Pending</TabsTrigger>
-                  <TabsTrigger value="flagged">Flagged</TabsTrigger>
-                  <TabsTrigger value="approved">Approved</TabsTrigger>
-                  <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                  <TabsTrigger value="Pending">Pending</TabsTrigger>
+                  <TabsTrigger value="Flagged">Flagged</TabsTrigger>
+                  <TabsTrigger value="Approved">Approved</TabsTrigger>
+                  <TabsTrigger value="Rejected">Rejected</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value={activeTab}>
                   {isLoading ? (
-                    <div className="space-y-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Skeleton key={i} className="h-12 w-full" />
+                    <div className="space-y-4">
+                      {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} className="h-40 w-full" />
                       ))}
                     </div>
                   ) : properties.length === 0 ? (
@@ -170,52 +228,59 @@ export default function ModerationPage() {
                       <p className="text-muted-foreground">No properties found with this status.</p>
                     </div>
                   ) : (
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Agent</TableHead>
-                            <TableHead>Reports</TableHead>
-                            <TableHead>Created</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {properties.map((property) => (
-                            <TableRow
-                              key={property._id}
-                              className={selectedProperty?._id === property._id ? "bg-muted" : ""}
-                            >
-                              <TableCell className="font-medium">{property.title}</TableCell>
-                              <TableCell>{`${property.agent.firstName} ${property.agent.lastName}`}</TableCell>
-                              <TableCell>
-                                {property.reportCount > 0 ? (
-                                  <span className="flex items-center">
-                                    <AlertTriangle className="h-4 w-4 mr-1 text-amber-500" />
-                                    {property.reportCount}
-                                  </span>
-                                ) : (
-                                  "0"
-                                )}
-                              </TableCell>
-                              <TableCell>{new Date(property.createdAt).toLocaleDateString()}</TableCell>
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button variant="outline" size="sm" asChild>
-                                    <Link href={`/properties/${property._id}`}>
-                                      <Eye className="h-4 w-4" />
-                                    </Link>
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => handleSelectProperty(property)}>
-                                    Review
-                                  </Button>
+                    <div className="space-y-4">
+                      {properties.map((property) => (
+                        <Card
+                          key={property._id}
+                          className={`cursor-pointer ${selectedProperty?._id === property._id ? "border-emerald-500" : ""}`}
+                          onClick={() => handleSelectProperty(property)}
+                        >
+                          <CardContent className="p-6">
+                            <div className="flex flex-col md:flex-row gap-4">
+                              <div className="relative h-24 w-24 rounded-md overflow-hidden flex-shrink-0">
+                                <Image
+                                  src={getImageUrl(property.images?.[0]) || "/placeholder.svg"}
+                                  alt={property.title}
+                                  fill
+                                  className="object-cover"
+                                  unoptimized={property.images?.[0]?.startsWith("http")}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex flex-col md:flex-row justify-between mb-2">
+                                  <div>
+                                    <h3 className="font-medium text-lg">{property.title}</h3>
+                                    <p className="text-gray-600 text-sm">
+                                      {property.address}, {property.city}, {property.state} {property.zipCode}
+                                    </p>
+                                  </div>
+                                  <div className="mt-2 md:mt-0 flex items-center">
+                                    {getStatusBadge(property.moderationStatus)}
+                                    <span className="text-sm text-gray-500 ml-2">{formatDate(property.createdAt)}</span>
+                                  </div>
                                 </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+
+                                <div className="space-y-2">
+                                  <div>
+                                    <h4 className="text-sm font-medium">Agent:</h4>
+                                    <p className="text-gray-600">
+                                      {property.agent.firstName} {property.agent.lastName} ({property.agent.email})
+                                    </p>
+                                  </div>
+                                  {property.reportCount > 0 && (
+                                    <div className="flex items-center text-amber-600">
+                                      <AlertTriangle className="h-4 w-4 mr-1" />
+                                      <span className="text-sm font-medium">
+                                        Reported {property.reportCount} time{property.reportCount !== 1 ? "s" : ""}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
                   )}
                 </TabsContent>
@@ -227,70 +292,91 @@ export default function ModerationPage() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Moderation Actions</CardTitle>
+              <CardTitle>Property Details</CardTitle>
               <CardDescription>
-                {selectedProperty
-                  ? `Review and update status for "${selectedProperty.title}"`
-                  : "Select a property to moderate"}
+                {selectedProperty ? `Review details for "${selectedProperty.title}"` : "Select a property to review"}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {selectedProperty ? (
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Moderation Status</label>
-                    <Select value={moderationStatus} onValueChange={setModerationStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pending">
-                          <div className="flex items-center">
-                            <AlertTriangle className="h-4 w-4 mr-2 text-amber-500" />
-                            Pending
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="Approved">
-                          <div className="flex items-center">
-                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                            Approved
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="Rejected">
-                          <div className="flex items-center">
-                            <XCircle className="h-4 w-4 mr-2 text-red-500" />
-                            Rejected
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="Flagged">
-                          <div className="flex items-center">
-                            <AlertTriangle className="h-4 w-4 mr-2 text-orange-500" />
-                            Flagged
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {selectedProperty.images && selectedProperty.images.length > 0 && (
+                    <div className="relative h-48 w-full rounded-md overflow-hidden">
+                      <Image
+                        src={getImageUrl(selectedProperty.images[0]) || "/placeholder.svg"}
+                        alt={selectedProperty.title}
+                        fill
+                        className="object-cover"
+                        unoptimized={selectedProperty.images[0]?.startsWith("http")}
+                      />
+                    </div>
+                  )}
 
                   <div>
-                    <label className="text-sm font-medium">Moderation Notes</label>
+                    <h3 className="text-sm font-medium">Description:</h3>
+                    <p className="text-gray-600 p-3 bg-gray-50 rounded-md mt-1">{selectedProperty.description}</p>
+                  </div>
+
+                  {selectedProperty.reports && selectedProperty.reports.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium">User Reports:</h3>
+                      <div className="space-y-2 mt-1">
+                        {selectedProperty.reports.map((report, index) => (
+                          <div key={index} className="p-3 bg-red-50 rounded-md border border-red-100">
+                            <p className="text-sm text-red-700">{report.reason}</p>
+                            <p className="text-xs text-gray-500 mt-1">Reported on {formatDate(report.timestamp)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="text-sm font-medium">Moderation Notes:</h3>
                     <Textarea
                       placeholder="Add notes about this property..."
                       value={moderationNotes}
                       onChange={(e) => setModerationNotes(e.target.value)}
-                      className="min-h-[100px]"
+                      className="min-h-[100px] mt-1"
+                      disabled={
+                        selectedProperty.moderationStatus !== "Pending" &&
+                        selectedProperty.moderationStatus !== "Flagged"
+                      }
                     />
                   </div>
 
-                  <div className="pt-4">
-                    <Button onClick={handleUpdateModeration} disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? "Updating..." : "Update Moderation Status"}
+                  <div className="flex space-x-2 pt-4">
+                    <Button variant="outline" size="sm" asChild className="flex-1">
+                      <Link href={`/properties/${selectedProperty._id}`}>View Property</Link>
                     </Button>
                   </div>
+
+                  {(selectedProperty.moderationStatus === "Pending" ||
+                    selectedProperty.moderationStatus === "Flagged") && (
+                    <div className="flex space-x-2 pt-2">
+                      <Button
+                        onClick={() => handleModerateProperty("approve")}
+                        disabled={isSubmitting}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Approve
+                      </Button>
+                      <Button
+                        onClick={() => handleModerateProperty("reject")}
+                        disabled={isSubmitting}
+                        variant="destructive"
+                        className="flex-1"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-10">
-                  <p className="text-muted-foreground">Select a property to moderate</p>
+                  <p className="text-muted-foreground">Select a property to review</p>
                 </div>
               )}
             </CardContent>

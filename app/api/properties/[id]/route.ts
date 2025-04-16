@@ -9,6 +9,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     await dbConnect()
 
     const propertyId = params.id
+    console.log("Fetching property with ID:", propertyId)
 
     // Find property by ID
     const property = await Property.findById(propertyId).populate(
@@ -17,9 +18,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
     )
 
     if (!property) {
+      console.log("Property not found with ID:", propertyId)
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
+    console.log("Found property:", property.title)
     return NextResponse.json(property)
   } catch (error) {
     console.error("Error fetching property:", error)
@@ -147,4 +150,3 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ error: "Failed to delete property" }, { status: 500 })
   }
 }
-

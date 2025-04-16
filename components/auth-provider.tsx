@@ -1,5 +1,6 @@
+"use client"
+
 import type React from "react"
-'use client'
 
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -83,12 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Login failed")
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed")
+      }
 
       // Set user data
       setUser(data.user)
@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       router.push("/dashboard")
     } catch (error: any) {
+      console.error("Login error:", error)
       toast({
         title: "Login failed",
         description: error.message || "An error occurred during login",
@@ -258,4 +259,3 @@ export function useAuth() {
   }
   return context
 }
-
