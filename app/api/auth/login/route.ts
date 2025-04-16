@@ -41,6 +41,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
+    // Check if user is active
+    if (user.isActive === false) {
+      console.log("User account is inactive")
+      return NextResponse.json({ error: "Account is inactive. Please contact support." }, { status: 403 })
+    }
+
     console.log("User found, checking password")
     // Verify password
     const passwordMatch = await user.comparePassword(password)
@@ -53,7 +59,12 @@ export async function POST(request: Request) {
     console.log("Password matches, generating JWT")
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
+      {
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      },
       process.env.JWT_SECRET || "fallback_secret",
       { expiresIn: "7d" },
     )
@@ -73,6 +84,7 @@ export async function POST(request: Request) {
           licenseNumber: user.licenseNumber,
           phoneNumber: user.phoneNumber,
           profileImage: user.profileImage,
+          isActive: user.isActive,
         },
       },
       { status: 200 },

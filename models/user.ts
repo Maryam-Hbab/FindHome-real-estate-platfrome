@@ -11,6 +11,7 @@ export interface IUser extends mongoose.Document {
   licenseNumber?: string
   phoneNumber?: string
   profileImage?: string
+  isActive: boolean
   createdAt: Date
   comparePassword(candidatePassword: string): Promise<boolean>
 }
@@ -58,6 +59,10 @@ const userSchema = new mongoose.Schema({
   profileImage: {
     type: String,
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -80,15 +85,18 @@ userSchema.pre("save", async function (next) {
 // Check the comparePassword method to ensure it's working correctly
 userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   try {
-    console.log("Comparing passwords");
-    
-    // Check if the hash starts with $2a$ (bcryptjs) or $2b$ (bcrypt)
-    const isMatch = await bcryptjs.compare(candidatePassword, this.password);
-    console.log("Password match result:", isMatch);
-    return isMatch;
+    // Log for debugging
+    console.log("Comparing passwords")
+    console.log("Candidate password length:", candidatePassword.length)
+    console.log("Stored password hash length:", this.password.length)
+
+    // Use bcryptjs for password comparison
+    const isMatch = await bcryptjs.compare(candidatePassword, this.password)
+    console.log("Password match result:", isMatch)
+    return isMatch
   } catch (error) {
-    console.error("Error comparing passwords:", error);
-    return false;
+    console.error("Error comparing passwords:", error)
+    return false
   }
 }
 

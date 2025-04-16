@@ -42,7 +42,17 @@ export async function middleware(request: NextRequest) {
       // We'll use jose library which works in Edge Runtime
       const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback_secret")
 
-      await jwtVerify(token, secret)
+      const { payload } = await jwtVerify(token, secret)
+
+      // Check if user is inactive (if the information is in the token)
+      if (payload.isActive === false) {
+        // If user is inactive, redirect to login with an error message
+        if (isProtectedRoute) {
+          const url = new URL("/auth/login", request.url)
+          url.searchParams.set("error", "account_inactive")
+          return NextResponse.redirect(url)
+        }
+      }
 
       // If token is valid and user is trying to access auth routes, redirect to dashboard
       if (isAuthRoute) {
@@ -74,4 +84,3 @@ export const config = {
     "/((?!api|_next/static|_next/image|favicon.ico|public).*)",
   ],
 }
-
