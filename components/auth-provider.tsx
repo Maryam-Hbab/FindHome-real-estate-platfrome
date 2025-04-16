@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
+  // Update the login function to handle and display specific error messages
   const login = async (email: string, password: string) => {
     try {
       setLoading(true)
@@ -112,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Update the register function to handle and display specific error messages
   const register = async (userData: RegisterData) => {
     try {
       setLoading(true)

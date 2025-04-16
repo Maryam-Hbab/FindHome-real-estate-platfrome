@@ -54,7 +54,10 @@ export async function POST(request: Request) {
 
       if (existingUser) {
         console.log("User already exists")
-        return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
+        return NextResponse.json(
+          { error: "An account with this email already exists. Please use a different email or login instead." },
+          { status: 409 },
+        )
       }
     } catch (findError) {
       console.error("Error checking existing user:", findError)
@@ -154,4 +157,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

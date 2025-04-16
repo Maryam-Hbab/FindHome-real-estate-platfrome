@@ -38,13 +38,19 @@ export async function POST(request: Request) {
 
     if (!user) {
       console.log("User not found")
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      return NextResponse.json(
+        { error: "No account found with this email address. Please check your email or register." },
+        { status: 401 },
+      )
     }
 
     // Check if user is active
     if (user.isActive === false) {
       console.log("User account is inactive")
-      return NextResponse.json({ error: "Account is inactive. Please contact support." }, { status: 403 })
+      return NextResponse.json(
+        { error: "Your account has been deactivated. Please contact support for assistance." },
+        { status: 403 },
+      )
     }
 
     console.log("User found, checking password")
@@ -53,7 +59,7 @@ export async function POST(request: Request) {
 
     if (!passwordMatch) {
       console.log("Password doesn't match")
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      return NextResponse.json({ error: "Incorrect password. Please try again." }, { status: 401 })
     }
 
     console.log("Password matches, generating JWT")
