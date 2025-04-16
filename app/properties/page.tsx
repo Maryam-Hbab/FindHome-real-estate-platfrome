@@ -13,82 +13,6 @@ import Image from "next/image"
 import Link from "next/link"
 import PropertyMap from "@/components/property-map"
 
-// Mock property data
-const mockProperties = [
-  {
-    id: "1",
-    title: "Modern Apartment with City View",
-    price: 450000,
-    address: "123 Main St, New York, NY 10001",
-    bedrooms: 2,
-    bathrooms: 2,
-    area: 1200,
-    type: "Apartment",
-    status: "For Sale",
-    image: "/placeholder.svg?height=300&width=500",
-  },
-  {
-    id: "2",
-    title: "Luxury Villa with Pool",
-    price: 1250000,
-    address: "456 Ocean Ave, Miami, FL 33139",
-    bedrooms: 4,
-    bathrooms: 3.5,
-    area: 3200,
-    type: "House",
-    status: "For Sale",
-    image: "/placeholder.svg?height=300&width=500",
-  },
-  {
-    id: "3",
-    title: "Cozy Studio in Downtown",
-    price: 1800,
-    address: "789 Urban St, San Francisco, CA 94105",
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 650,
-    type: "Apartment",
-    status: "For Rent",
-    image: "/placeholder.svg?height=300&width=500",
-  },
-  {
-    id: "4",
-    title: "Spacious Family Home",
-    price: 750000,
-    address: "101 Suburban Rd, Austin, TX 78701",
-    bedrooms: 5,
-    bathrooms: 3,
-    area: 2800,
-    type: "House",
-    status: "For Sale",
-    image: "/placeholder.svg?height=300&width=500",
-  },
-  {
-    id: "5",
-    title: "Penthouse with Rooftop Terrace",
-    price: 950000,
-    address: "202 Skyline Blvd, Chicago, IL 60601",
-    bedrooms: 3,
-    bathrooms: 2.5,
-    area: 2100,
-    type: "Apartment",
-    status: "For Sale",
-    image: "/placeholder.svg?height=300&width=500",
-  },
-  {
-    id: "6",
-    title: "Charming Cottage Near Lake",
-    price: 2200,
-    address: "303 Lakeside Dr, Seattle, WA 98101",
-    bedrooms: 2,
-    bathrooms: 1,
-    area: 1100,
-    type: "House",
-    status: "For Rent",
-    image: "/placeholder.svg?height=300&width=500",
-  },
-]
-
 export default function PropertiesPage() {
   const searchParams = useSearchParams()
   const [properties, setProperties] = useState<any[]>([])
@@ -105,57 +29,53 @@ export default function PropertiesPage() {
   const [status, setStatus] = useState(searchParams.get("status") || "for-sale")
 
   useEffect(() => {
-    // Simulate API call with filters
+    // Fetch properties from API with filters
     const fetchProperties = async () => {
       try {
-        // In a real app, this would be an API call with filter parameters
-        // const response = await fetch(`/api/properties?${new URLSearchParams(filters)}`)
-        // const data = await response.json()
+        setLoading(true)
 
-        // Using mock data for now
-        setTimeout(() => {
-          // Apply filters to mock data
-          let filteredProperties = [...mockProperties]
+        // Build query parameters
+        const params = new URLSearchParams()
 
-          // Filter by status
-          if (status === "for-sale") {
-            filteredProperties = filteredProperties.filter((p) => p.status === "For Sale")
-          } else if (status === "for-rent") {
-            filteredProperties = filteredProperties.filter((p) => p.status === "For Rent")
-          }
+        if (location) params.append("location", location)
+        if (propertyType && propertyType !== "all") params.append("type", propertyType)
 
-          // Filter by property type
-          if (propertyType) {
-            filteredProperties = filteredProperties.filter((p) => p.type.toLowerCase() === propertyType.toLowerCase())
-          }
+        // Handle status
+        if (status === "for-sale") {
+          params.append("status", "For Sale")
+        } else if (status === "for-rent") {
+          params.append("status", "For Rent")
+        }
 
-          // Filter by bedrooms
-          if (bedrooms) {
-            const minBedrooms = Number.parseInt(bedrooms)
-            filteredProperties = filteredProperties.filter((p) => p.bedrooms >= minBedrooms)
-          }
+        // Handle price range
+        if (priceRange[0] > 0) params.append("minPrice", priceRange[0].toString())
+        if (priceRange[1] < 2000000) params.append("maxPrice", priceRange[1].toString())
 
-          // Filter by price range
-          filteredProperties = filteredProperties.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1])
+        // Handle bedrooms
+        if (bedrooms && bedrooms !== "any") params.append("bedrooms", bedrooms)
 
-          // Filter by location (simple substring match for demo)
-          if (location) {
-            filteredProperties = filteredProperties.filter((p) =>
-              p.address.toLowerCase().includes(location.toLowerCase()),
-            )
-          }
+        // Handle bathrooms
+        if (bathrooms && bathrooms !== "any") params.append("bathrooms", bathrooms)
 
-          setProperties(filteredProperties)
-          setLoading(false)
-        }, 1000)
+        // Fetch properties from API
+        const response = await fetch(`/api/properties?${params.toString()}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch properties")
+        }
+
+        const data = await response.json()
+        setProperties(data)
       } catch (error) {
         console.error("Error fetching properties:", error)
+        setProperties([])
+      } finally {
         setLoading(false)
       }
     }
 
     fetchProperties()
-  }, [location, propertyType, priceRange, bedrooms, status])
+  }, [location, propertyType, priceRange, bedrooms, bathrooms, status])
 
   const formatPrice = (price: number, status: string) => {
     return status === "For Rent" ? `$${price.toLocaleString()}/month` : `$${price.toLocaleString()}`
@@ -163,6 +83,10 @@ export default function PropertiesPage() {
 
   const toggleFilters = () => {
     setFiltersOpen(!filtersOpen)
+  }
+
+  const handleApplyFilters = () => {
+    // This will trigger the useEffect to fetch properties with the current filters
   }
 
   return (
@@ -220,11 +144,12 @@ export default function PropertiesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="house">House</SelectItem>
-                    <SelectItem value="apartment">Apartment</SelectItem>
-                    <SelectItem value="condo">Condo</SelectItem>
-                    <SelectItem value="townhouse">Townhouse</SelectItem>
-                    <SelectItem value="land">Land</SelectItem>
+                    <SelectItem value="House">House</SelectItem>
+                    <SelectItem value="Apartment">Apartment</SelectItem>
+                    <SelectItem value="Condo">Condo</SelectItem>
+                    <SelectItem value="Townhouse">Townhouse</SelectItem>
+                    <SelectItem value="Land">Land</SelectItem>
+                    <SelectItem value="Commercial">Commercial</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -293,7 +218,7 @@ export default function PropertiesPage() {
                 </Select>
               </div>
 
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleApplyFilters}>
                 <Search className="mr-2 h-4 w-4" />
                 Apply Filters
               </Button>
@@ -340,26 +265,33 @@ export default function PropertiesPage() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {properties.map((property) => (
-                        <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                        <Card key={property._id} className="overflow-hidden hover:shadow-lg transition-shadow">
                           <div className="relative">
-                            <Link href={`/properties/${property.id}`}>
-                              <Image
-                                src={property.image || "/placeholder.svg"}
-                                alt={property.title}
-                                width={500}
-                                height={300}
-                                className="h-48 w-full object-cover"
-                              />
+                            <Link href={`/properties/${property._id}`}>
+                              <div className="relative h-48 w-full">
+                                <Image
+                                  src={
+                                    property.images && property.images.length > 0
+                                      ? property.images[0]
+                                      : "/placeholder.svg?height=300&width=500"
+                                  }
+                                  alt={property.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
                             </Link>
                             <Badge className="absolute top-2 left-2 bg-emerald-600">{property.status}</Badge>
                           </div>
                           <CardContent className="p-4">
-                            <Link href={`/properties/${property.id}`} className="hover:text-emerald-600">
+                            <Link href={`/properties/${property._id}`} className="hover:text-emerald-600">
                               <h3 className="font-semibold text-lg mb-1 line-clamp-1">{property.title}</h3>
                             </Link>
                             <div className="flex items-center text-gray-500 mb-2">
                               <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                              <p className="text-sm line-clamp-1">{property.address}</p>
+                              <p className="text-sm line-clamp-1">
+                                {property.address}, {property.city}, {property.state}
+                              </p>
                             </div>
                             <p className="font-bold text-lg text-emerald-600 mb-3">
                               {formatPrice(property.price, property.status)}
@@ -398,4 +330,3 @@ export default function PropertiesPage() {
     </div>
   )
 }
-

@@ -24,39 +24,59 @@ const fixLeafletIcon = () => {
 const mockProperties = [
   {
     id: "1",
+    _id: "507f1f77bcf86cd799439011", // Added MongoDB-compatible ObjectId
     title: "Modern Apartment with City View",
     price: 450000,
     lat: 40.7128,
     lng: -74.006,
     type: "Apartment",
     status: "For Sale",
+    location: {
+      type: "Point",
+      coordinates: [-74.006, 40.7128], // [longitude, latitude] for New York
+    },
   },
   {
     id: "2",
+    _id: "507f1f77bcf86cd799439012", // Added MongoDB-compatible ObjectId
     title: "Luxury Villa with Pool",
     price: 1250000,
-    lat: 40.7148,
-    lng: -74.013,
+    lat: 25.7617,
+    lng: -80.1918,
     type: "House",
     status: "For Sale",
+    location: {
+      type: "Point",
+      coordinates: [-80.1918, 25.7617], // [longitude, latitude] for Miami
+    },
   },
   {
     id: "3",
+    _id: "507f1f77bcf86cd799439013", // Added MongoDB-compatible ObjectId
     title: "Cozy Studio in Downtown",
     price: 1800,
-    lat: 40.7158,
-    lng: -73.998,
+    lat: 37.7749,
+    lng: -122.4194,
     type: "Apartment",
     status: "For Rent",
+    location: {
+      type: "Point",
+      coordinates: [-122.4194, 37.7749], // [longitude, latitude] for San Francisco
+    },
   },
   {
     id: "4",
+    _id: "507f1f77bcf86cd799439014", // Added MongoDB-compatible ObjectId
     title: "Spacious Family Home",
     price: 750000,
-    lat: 40.7118,
-    lng: -74.016,
+    lat: 30.2672,
+    lng: -97.7431,
     type: "House",
     status: "For Sale",
+    location: {
+      type: "Point",
+      coordinates: [-97.7431, 30.2672], // [longitude, latitude] for Austin
+    },
   },
 ]
 
@@ -118,4 +138,3 @@ export default function DashboardMap() {
 
   return <div ref={mapContainerRef} className="h-full w-full" />
 }
-

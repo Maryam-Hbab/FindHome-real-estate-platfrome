@@ -3,19 +3,43 @@ import dbConnect from "@/lib/db"
 import Property from "@/models/property"
 import { getUserFromToken } from "@/lib/auth"
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+// Update the GET function to handle both MongoDB ObjectIds and string IDs
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
   try {
     // Connect to database
     await dbConnect()
 
-    const propertyId = params.id
+    // Await the params object before accessing its properties
+    const resolvedParams = await params
+    const propertyId = resolvedParams.id
+
+    if (!propertyId) {
+      console.error("Property ID is undefined")
+      return NextResponse.json({ error: "Property ID is required" }, { status: 400 })
+    }
+
     console.log("Fetching property with ID:", propertyId)
 
-    // Find property by ID
-    const property = await Property.findById(propertyId).populate(
-      "agent",
-      "firstName lastName email phoneNumber profileImage",
-    )
+    // Find property by ID - handle both MongoDB ObjectId and string IDs
+    let property
+
+    try {
+      // First try to find by MongoDB ObjectId
+      property = await Property.findById(propertyId).populate(
+        "agent",
+        "firstName lastName email phoneNumber profileImage",
+      )
+    } catch (error) {
+      // If that fails, try to find by custom id field
+      console.log("Falling back to find by custom id field")
+      property = await Property.findOne({ id: propertyId }).populate(
+        "agent",
+        "firstName lastName email phoneNumber profileImage",
+      )
+    }
 
     if (!property) {
       console.log("Property not found with ID:", propertyId)
@@ -30,12 +54,21 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
   try {
     // Connect to database
     await dbConnect()
 
-    const propertyId = params.id
+    // Await the params object before accessing its properties
+    const resolvedParams = await params
+    const propertyId = resolvedParams.id
+
+    if (!propertyId) {
+      return NextResponse.json({ error: "Property ID is required" }, { status: 400 })
+    }
 
     // Get the token from cookies
     const cookieHeader = request.headers.get("cookie")
@@ -94,12 +127,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
   try {
     // Connect to database
     await dbConnect()
 
-    const propertyId = params.id
+    // Await the params object before accessing its properties
+    const resolvedParams = await params
+    const propertyId = resolvedParams.id
+
+    if (!propertyId) {
+      return NextResponse.json({ error: "Property ID is required" }, { status: 400 })
+    }
 
     // Get the token from cookies
     const cookieHeader = request.headers.get("cookie")

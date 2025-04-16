@@ -67,11 +67,14 @@ export async function GET(request: Request) {
       query.isFeatured = true
     }
 
+    console.log("Query:", JSON.stringify(query, null, 2))
+
     // Execute query
     const properties = await Property.find(query)
       .populate("agent", "firstName lastName email phoneNumber profileImage")
       .sort({ createdAt: -1 })
 
+    console.log(`Found ${properties.length} properties matching the query`)
     return NextResponse.json(properties)
   } catch (error) {
     console.error("Error fetching properties:", error)

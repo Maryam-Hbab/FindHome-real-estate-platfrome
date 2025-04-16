@@ -13,13 +13,17 @@ type LeafletLatLngBounds = any
 type LeafletFeatureGroup = any
 
 interface Property {
-  id: string
+  id?: string
+  _id?: string // Add _id to support MongoDB document IDs
   title: string
   price: number
   address: string
   status: string
   lat?: number
   lng?: number
+  location?: {
+    coordinates: [number, number]
+  }
   // Add other property fields as needed
 }
 
@@ -93,15 +97,26 @@ export default function PropertyMap({
   // Create custom marker icons
   const createCustomIcon = (L: any, isSelected: boolean) => {
     return L.divIcon({
-      className: "custom-marker-icon",
-      html: `<div class="w-8 h-8 flex items-center justify-center rounded-full ${
-        isSelected ? "bg-emerald-600" : "bg-white"
-      } text-${isSelected ? "white" : "emerald-600"} font-bold border-2 border-emerald-600 shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-          <circle cx="12" cy="10" r="3"></circle>
-        </svg>
-      </div>`,
+      className: "",
+      html: `
+     <div style="
+       width: 32px; 
+       height: 32px; 
+       display: flex; 
+       align-items: center; 
+       justify-content: center; 
+       background-color: ${isSelected ? "#10b981" : "#ffffff"}; 
+       color: ${isSelected ? "#ffffff" : "#10b981"}; 
+       border: 2px solid #10b981; 
+       border-radius: 50%; 
+       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+     ">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+         <circle cx="12" cy="10" r="3"></circle>
+       </svg>
+     </div>
+   `,
       iconSize: [32, 32],
       iconAnchor: [16, 32],
     })
@@ -115,13 +130,30 @@ export default function PropertyMap({
     const L = leaflet
 
     try {
-      // Create map centered on first property or default location
-      const firstProperty = properties[0]
-      const initialLat = firstProperty?.lat || 40.7128
-      const initialLng = firstProperty?.lng || -74.006
+      // Create map centered on first property with valid coordinates or default location
+      let initialLat = 40.7128 // Default to New York
+      let initialLng = -74.006
+      const initialZoom = 12
+
+      // Find the first property with valid coordinates
+      const propertyWithCoords = properties.find((p) => p.lat && p.lng)
+
+      if (propertyWithCoords && propertyWithCoords.lat !== undefined && propertyWithCoords.lng !== undefined) {
+        initialLat = propertyWithCoords.lat
+        initialLng = propertyWithCoords.lng
+      } else if (
+        properties.length > 0 &&
+        properties[0].location &&
+        properties[0].location.coordinates &&
+        properties[0].location.coordinates.length === 2
+      ) {
+        // Try to use the location.coordinates if available
+        initialLat = properties[0].location.coordinates[1] // [1] is latitude
+        initialLng = properties[0].location.coordinates[0] // [0] is longitude
+      }
 
       // Create the map
-      const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], 12)
+      const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom)
 
       // Add tile layer (OpenStreetMap)
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -192,6 +224,9 @@ export default function PropertyMap({
       }
 
       setMapInitialized(true)
+
+      // Log for debugging
+      console.log("Map initialized at coordinates:", [initialLat, initialLng])
     } catch (error) {
       console.error("Error initializing map:", error)
       toast({
@@ -215,6 +250,7 @@ export default function PropertyMap({
     if (!leaflet || !internalMapRef.current || !mapInitialized) return
 
     const L = leaflet
+    console.log("Adding markers for properties:", properties)
 
     // Clear existing markers
     Object.values(markersRef.current).forEach((marker) => {
@@ -224,52 +260,93 @@ export default function PropertyMap({
 
     // Add property markers
     properties.forEach((property) => {
-      // Skip if no coordinates
-      if (!property.lat || !property.lng) return
+      // Determine coordinates based on property structure
+      let lat: number | undefined
+      let lng: number | undefined
 
-      const isSelected = selectedProperty === property.id
+      // Direct lat/lng properties
+      if (property.lat !== undefined && property.lng !== undefined) {
+        lat = property.lat
+        lng = property.lng
+      }
+      // Location object with coordinates array [lng, lat]
+      else if (property.location && property.location.coordinates && property.location.coordinates.length === 2) {
+        lat = property.location.coordinates[1] // GeoJSON format: [longitude, latitude]
+        lng = property.location.coordinates[0]
+      } else {
+        console.warn("Property missing coordinates:", property)
+        return // Skip this property
+      }
+
+      // Get property ID (support both id and _id)
+      const propertyId = property.id || property._id
+      if (!propertyId) {
+        console.warn("Property missing ID:", property)
+        return // Skip this property
+      }
+
+      console.log(`Adding marker for property ${propertyId} at [${lat}, ${lng}]`)
+
+      const isSelected = selectedProperty === propertyId
       const icon = createCustomIcon(L, isSelected)
 
-      const marker = L.marker([property.lat, property.lng], { icon }).addTo(internalMapRef.current!)
+      try {
+        const marker = L.marker([lat, lng], { icon }).addTo(internalMapRef.current!)
 
-      // Store marker reference
-      markersRef.current[property.id] = marker
+        // Store marker reference
+        markersRef.current[propertyId] = marker
 
-      // Create popup content
-      const popupContent = `
-        <div class="map-popup">
-          <h3 class="font-semibold">${property.title}</h3>
-          <p class="text-emerald-600 font-bold">${property.status === "For Rent" ? `${property.price}/month` : `${property.price.toLocaleString()}`}</p>
-          <p>${property.address}</p>
-          <a href="/properties/${property.id}" class="text-emerald-600 hover:underline">View details</a>
-        </div>
-      `
+        // Create popup content
+        const popupContent = `
+         <div class="map-popup">
+           <h3 class="font-semibold">${property.title}</h3>
+           <p class="text-emerald-600 font-bold">${property.status === "For Rent" ? `$${property.price}/month` : `$${property.price.toLocaleString()}`}</p>
+           <p>${property.address}</p>
+           <a href="/properties/${propertyId}" class="text-emerald-600 hover:underline">View details</a>
+         </div>
+       `
 
-      // Bind popup to marker
-      marker.bindPopup(popupContent)
+        // Bind popup to marker
+        marker.bindPopup(popupContent)
 
-      // Add click handler
-      marker.on("click", () => {
-        // Open popup
-        marker.openPopup()
+        // Add click handler
+        marker.on("click", () => {
+          // Open popup
+          marker.openPopup()
 
-        // Call onMarkerClick if provided
-        if (onMarkerClick) {
-          onMarkerClick(property.id)
-        }
-      })
+          // Call onMarkerClick if provided
+          if (onMarkerClick) {
+            onMarkerClick(propertyId)
+          }
+        })
+      } catch (error) {
+        console.error("Error adding marker:", error, property)
+      }
     })
 
     // If a property is selected, center map on it
     if (selectedProperty) {
-      const property = properties.find((p) => p.id === selectedProperty)
-      if (property?.lat && property?.lng) {
-        internalMapRef.current.setView([property.lat, property.lng], 15)
+      const property = properties.find((p) => (p.id || p._id) === selectedProperty)
+      if (property) {
+        let lat: number | undefined
+        let lng: number | undefined
 
-        // Open popup for selected property
-        const marker = markersRef.current[selectedProperty]
-        if (marker) {
-          marker.openPopup()
+        if (property.lat !== undefined && property.lng !== undefined) {
+          lat = property.lat
+          lng = property.lng
+        } else if (property.location && property.location.coordinates) {
+          lat = property.location.coordinates[1]
+          lng = property.location.coordinates[0]
+        }
+
+        if (lat !== undefined && lng !== undefined) {
+          internalMapRef.current.setView([lat, lng], 15)
+
+          // Open popup for selected property
+          const marker = markersRef.current[selectedProperty]
+          if (marker) {
+            marker.openPopup()
+          }
         }
       }
     }

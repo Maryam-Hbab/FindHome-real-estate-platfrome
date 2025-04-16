@@ -40,6 +40,10 @@ export interface IProperty extends mongoose.Document {
 }
 
 const propertySchema = new mongoose.Schema({
+  id: {
+    type: String,
+    index: true,
+  },
   title: {
     type: String,
     required: [true, "Title is required"],
