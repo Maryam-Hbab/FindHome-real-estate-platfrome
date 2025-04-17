@@ -103,10 +103,23 @@ export default function ManagePropertiesPage() {
     try {
       const response = await fetch(`/api/properties/${propertyId}`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
       })
 
+      // Parse the response data
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError)
+        data = {}
+      }
+
       if (!response.ok) {
-        throw new Error("Failed to delete property")
+        console.error("Delete property error:", data)
+        throw new Error(data?.error || "Failed to delete property")
       }
 
       toast({
@@ -120,7 +133,7 @@ export default function ManagePropertiesPage() {
       console.error("Error deleting property:", error)
       toast({
         title: "Error",
-        description: "Failed to delete property",
+        description: error instanceof Error ? error.message : "Failed to delete property",
         variant: "destructive",
       })
     }

@@ -29,7 +29,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Home className="h-8 w-8 text-emerald-600" />
-            <span className="ml-2 text-xl font-bold text-gray-900">RealEstate</span>
+            <span className="ml-2 text-xl font-bold text-gray-900">FindHome</span>
           </Link>
 
           {/* Desktop Navigation */}

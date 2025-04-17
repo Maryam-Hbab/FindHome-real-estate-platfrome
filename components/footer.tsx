@@ -12,7 +12,7 @@ export default function Footer() {
           <div className="space-y-4">
             <div className="flex items-center">
               <Home className="h-8 w-8 text-emerald-500" />
-              <span className="ml-2 text-xl font-bold">RealEstate</span>
+              <span className="ml-2 text-xl font-bold">FindHome</span>
             </div>
             <p className="text-gray-400">
               Your trusted partner in finding the perfect property. We connect buyers, sellers, and agents to create
@@ -81,7 +81,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start">
                 <MapPin className="h-5 w-5 text-emerald-500 mr-2 mt-0.5" />
-                <span className="text-gray-400">123 Real Estate Blvd, New York, NY 10001</span>
+                <span className="text-gray-400">123 Avenue Hassan II, Casablanca 20000, Morocco</span>
               </li>
               <li className="flex items-center">
                 <Phone className="h-5 w-5 text-emerald-500 mr-2" />
@@ -113,7 +113,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">&copy; {new Date().getFullYear()} RealEstate. All rights reserved.</p>
+            <p className="text-gray-400 text-sm">&copy; {new Date().getFullYear()} FindHome. All rights reserved.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link href="/terms" className="text-gray-400 hover:text-emerald-500 text-sm">
                 Terms of Service

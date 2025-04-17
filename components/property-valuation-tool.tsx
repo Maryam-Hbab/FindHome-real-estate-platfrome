@@ -6,11 +6,26 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Home, Maximize2, Calendar, TrendingUp, Download, Share } from "lucide-react"
+import { TrendingUp, Download, Share } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+
+interface ValuationResult {
+  estimatedValue: number
+  valueRange: [number, number]
+  confidence: number
+  comparables: {
+    address: string
+    price: number
+    bedrooms: number
+    bathrooms: number
+    squareFeet: number
+    distanceInMiles: number
+    daysAgo: number
+  }[]
+}
 
 export default function PropertyValuationTool() {
   const [address, setAddress] = useState("")
@@ -22,37 +37,41 @@ export default function PropertyValuationTool() {
   const [lotSize, setLotSize] = useState(0.25)
   const [condition, setCondition] = useState("good")
   const [isLoading, setIsLoading] = useState(false)
-  const [valuationResult, setValuationResult] = useState<null | {
-    estimatedValue: number
-    valueRange: [number, number]
-    confidence: number
-    comparables: Array<{
-      address: string
-      price: number
-      bedrooms: number
-      bathrooms: number
-      squareFeet: number
-      distanceInMiles: number
-      daysAgo: number
-    }>
-  }>(null)
+  const [valuationResult, setValuationResult] = useState<ValuationResult | null>(null)
+  const [propertyId, setPropertyId] = useState("")
+  const [usePropertyId, setUsePropertyId] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call for property valuation
-    setTimeout(() => {
-      // Mock valuation result
-      const baseValue = 350000
-      const bedroomValue = bedrooms * 25000
-      const bathroomValue = bathrooms * 15000
-      const sqftValue = squareFeet * 150
-      const ageValue = (2023 - yearBuilt) * -1000
-      const lotValue = lotSize * 100000
-
-      const conditionMultiplier =
+    try {
+      let baseValue = 0
+      let bedroomValue = bedrooms * 25000
+      let bathroomValue = bathrooms * 15000
+      let sqftValue = squareFeet * 150
+      let ageValue = (new Date().getFullYear() - yearBuilt) * -1000
+      let lotValue = lotSize * 100000
+      let conditionMultiplier =
         condition === "excellent" ? 1.1 : condition === "good" ? 1.0 : condition === "fair" ? 0.9 : 0.8
+
+      if (usePropertyId && propertyId) {
+        const response = await fetch(`/api/properties/valuation?propertyId=${propertyId}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch property for valuation")
+        }
+        const property = await response.json()
+        baseValue = property.price
+        bedroomValue = property.bedrooms * 25000
+        bathroomValue = property.bathrooms * 15000
+        sqftValue = property.area * 150
+        ageValue = (new Date().getFullYear() - property.yearBuilt) * -1000
+        lotValue = 0.25 * 100000
+        conditionMultiplier =
+          condition === "excellent" ? 1.1 : condition === "good" ? 1.0 : condition === "fair" ? 0.9 : 0.8
+      } else {
+        baseValue = 350000
+      }
 
       const estimatedValue =
         (baseValue + bedroomValue + bathroomValue + sqftValue + ageValue + lotValue) * conditionMultiplier
@@ -94,9 +113,11 @@ export default function PropertyValuationTool() {
         confidence: 85,
         comparables,
       })
-
+    } catch (error) {
+      console.error("Error fetching property for valuation:", error)
+    } finally {
       setIsLoading(false)
-    }, 2000)
+    }
   }
 
   return (
@@ -112,121 +133,122 @@ export default function PropertyValuationTool() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Property Address</label>
-                <Input
-                  placeholder="Enter property address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Property Type</label>
-                  <Select value={propertyType} onValueChange={setPropertyType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select property type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="house">House</SelectItem>
-                      <SelectItem value="condo">Condo</SelectItem>
-                      <SelectItem value="townhouse">Townhouse</SelectItem>
-                      <SelectItem value="apartment">Apartment</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Condition</label>
-                  <Select value={condition} onValueChange={setCondition}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select condition" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="excellent">Excellent</SelectItem>
-                      <SelectItem value="good">Good</SelectItem>
-                      <SelectItem value="fair">Fair</SelectItem>
-                      <SelectItem value="poor">Poor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <label className="text-sm font-medium">Bedrooms</label>
-                    <span className="text-sm text-gray-500">{bedrooms}</span>
-                  </div>
-                  <Slider
-                    min={1}
-                    max={7}
-                    step={1}
-                    value={[bedrooms]}
-                    onValueChange={(value) => setBedrooms(value[0])}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <label className="text-sm font-medium">Bathrooms</label>
-                    <span className="text-sm text-gray-500">{bathrooms}</span>
-                  </div>
-                  <Slider
-                    min={1}
-                    max={5}
-                    step={0.5}
-                    value={[bathrooms]}
-                    onValueChange={(value) => setBathrooms(value[0])}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-sm font-medium">Square Feet</label>
-                  <span className="text-sm text-gray-500">{squareFeet} sq ft</span>
-                </div>
-                <div className="relative">
-                  <Maximize2 className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <label className="text-sm font-medium">
                   <Input
-                    type="number"
-                    value={squareFeet}
-                    onChange={(e) => setSquareFeet(Number.parseInt(e.target.value) || 0)}
-                    className="pl-10"
+                    type="checkbox"
+                    checked={usePropertyId}
+                    onChange={(e) => setUsePropertyId(e.target.checked)}
+                    className="mr-2"
                   />
-                </div>
+                  Use Property ID
+                </label>
+                {usePropertyId && (
+                  <Input
+                    placeholder="Enter property ID"
+                    value={propertyId}
+                    onChange={(e) => setPropertyId(e.target.value)}
+                    required={usePropertyId}
+                  />
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Year Built</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              {!usePropertyId && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
                     <Input
-                      type="number"
-                      value={yearBuilt}
-                      onChange={(e) => setYearBuilt(Number.parseInt(e.target.value) || 0)}
-                      className="pl-10"
+                      id="address"
+                      placeholder="Enter property address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Lot Size (acres)</label>
-                  <div className="relative">
-                    <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <div className="space-y-2">
+                    <Label htmlFor="propertyType">Property Type</Label>
+                    <Select value={propertyType} onValueChange={setPropertyType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select property type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="house">House</SelectItem>
+                        <SelectItem value="apartment">Apartment</SelectItem>
+                        <SelectItem value="condo">Condo</SelectItem>
+                        <SelectItem value="townhouse">Townhouse</SelectItem>
+                        <SelectItem value="land">Land</SelectItem>
+                        <SelectItem value="commercial">Commercial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bedrooms">Bedrooms</Label>
+                      <Input
+                        id="bedrooms"
+                        type="number"
+                        placeholder="Enter number of bedrooms"
+                        value={bedrooms}
+                        onChange={(e) => setBedrooms(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bathrooms">Bathrooms</Label>
+                      <Input
+                        id="bathrooms"
+                        type="number"
+                        placeholder="Enter number of bathrooms"
+                        value={bathrooms}
+                        onChange={(e) => setBathrooms(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="squareFeet">Square Feet</Label>
+                      <Input
+                        id="squareFeet"
+                        type="number"
+                        placeholder="Enter square footage"
+                        value={squareFeet}
+                        onChange={(e) => setSquareFeet(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="yearBuilt">Year Built</Label>
+                      <Input
+                        id="yearBuilt"
+                        type="number"
+                        placeholder="Enter year built"
+                        value={yearBuilt}
+                        onChange={(e) => setYearBuilt(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lotSize">Lot Size (acres)</Label>
                     <Input
+                      id="lotSize"
                       type="number"
-                      step="0.01"
+                      placeholder="Enter lot size"
                       value={lotSize}
-                      onChange={(e) => setLotSize(Number.parseFloat(e.target.value) || 0)}
-                      className="pl-10"
+                      onChange={(e) => setLotSize(Number(e.target.value))}
                     />
                   </div>
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="condition">Condition</Label>
+                    <Select value={condition} onValueChange={setCondition}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select condition" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="excellent">Excellent</SelectItem>
+                        <SelectItem value="good">Good</SelectItem>
+                        <SelectItem value="fair">Fair</SelectItem>
+                        <SelectItem value="poor">Poor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
             </div>
 
             <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>

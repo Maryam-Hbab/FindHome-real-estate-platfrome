@@ -2,12 +2,10 @@ import { NextResponse } from "next/server"
 import dbConnect from "@/lib/db"
 import Property from "@/models/property"
 import { getUserFromToken } from "@/lib/auth"
+import { createAuditLog } from "@/lib/auditLog"
 
 // Update the GET function to handle both MongoDB ObjectIds and string IDs
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> | { id: string } }) {
   try {
     // Connect to database
     await dbConnect()
@@ -54,10 +52,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
-) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> | { id: string } }) {
   try {
     // Connect to database
     await dbConnect()
@@ -127,10 +122,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
-) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> | { id: string } }) {
   try {
     // Connect to database
     await dbConnect()
@@ -142,6 +134,8 @@ export async function DELETE(
     if (!propertyId) {
       return NextResponse.json({ error: "Property ID is required" }, { status: 400 })
     }
+
+    console.log("Attempting to delete property with ID:", propertyId)
 
     // Get the token from cookies
     const cookieHeader = request.headers.get("cookie")
@@ -175,20 +169,51 @@ export async function DELETE(
     const property = await Property.findById(propertyId)
 
     if (!property) {
+      console.log("Property not found with ID:", propertyId)
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
     // Check if user is the agent who created the property or an admin
-    if (property.agent.toString() !== user.id && user.role !== "admin") {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 })
+    if (property.agent.toString() !== user.id.toString() && user.role !== "admin") {
+      console.log(
+        "User not authorized to delete property. User ID:",
+        user.id,
+        "Property agent:",
+        property.agent.toString(),
+      )
+      return NextResponse.json({ error: "Not authorized to delete this property" }, { status: 403 })
     }
 
     // Delete property
-    await Property.findByIdAndDelete(propertyId)
+    const result = await Property.findByIdAndDelete(propertyId)
+
+    if (!result) {
+      return NextResponse.json({ error: "Failed to delete property" }, { status: 500 })
+    }
+
+    console.log("Property deleted successfully:", propertyId)
+
+    // Create audit log for property deletion
+    await createAuditLog({
+      action: "property_deleted",
+      userId: user.id,
+      targetType: "property",
+      targetId: propertyId,
+      details: {
+        propertyTitle: property.title,
+        propertyAddress: property.address,
+      },
+    })
 
     return NextResponse.json({ message: "Property deleted successfully" }, { status: 200 })
   } catch (error) {
     console.error("Error deleting property:", error)
-    return NextResponse.json({ error: "Failed to delete property" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to delete property",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

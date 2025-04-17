@@ -29,13 +29,45 @@ interface Property {
 }
 
 interface PropertyComparisonProps {
-  properties: Property[]
+  propertyIds: string[]
   onRemoveProperty: (id: string) => void
 }
 
-export default function PropertyComparison({ properties, onRemoveProperty }: PropertyComparisonProps) {
+export default function PropertyComparison({ propertyIds, onRemoveProperty }: PropertyComparisonProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const [differences, setDifferences] = useState<Record<string, string[]>>({})
+  const [properties, setProperties] = useState<Property[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch properties based on IDs
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        setIsLoading(true)
+
+        // Construct the URLSearchParams object correctly
+        const params = new URLSearchParams()
+        propertyIds.forEach((id) => params.append("propertyIds", id))
+
+        const response = await fetch(`/api/properties/compare?${params.toString()}`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch properties")
+        }
+
+        const data = await response.json()
+        setProperties(data)
+      } catch (error) {
+        console.error("Error fetching properties:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (propertyIds && propertyIds.length > 0) {
+      fetchProperties()
+    }
+  }, [propertyIds])
 
   // Calculate differences between properties
   useEffect(() => {
@@ -76,6 +108,19 @@ export default function PropertyComparison({ properties, onRemoveProperty }: Pro
     setDifferences(diffs)
   }, [properties])
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Property Comparison</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">Loading properties...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (properties.length === 0) {
     return (
       <Card>
@@ -95,7 +140,7 @@ export default function PropertyComparison({ properties, onRemoveProperty }: Pro
   }
 
   const formatPrice = (price: number) => {
-    return `$${price.toLocaleString()}`
+    return `${price.toLocaleString()}`
   }
 
   const getDifferenceClass = (prop: string, index: number) => {

@@ -2,13 +2,20 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Home, Search, Users, MapPin, DollarSign, FileText, Bell, Calendar } from "lucide-react"
 import FeaturedProperties from "@/components/featured-properties"
-import HeroSearch from "@/components/hero-search"
+import heroImage from "@/public/images/hero-bg.jpeg"
 
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-gray-900 to-gray-800 text-white py-20 px-4 sm:px-6 lg:px-8">
+      <section
+        className="relative text-white py-20 px-4 sm:px-6 lg:px-8"
+        style={{
+          backgroundImage: `url(${heroImage.src})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
         <div className="container mx-auto max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
@@ -26,9 +33,6 @@ export default function HomePage() {
                   List Your Property
                 </Button>
               </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm p-6 rounded-xl">
-              <HeroSearch />
             </div>
           </div>
         </div>

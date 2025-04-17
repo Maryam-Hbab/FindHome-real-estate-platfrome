@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "RealEstate - Find Your Perfect Home",
+  title: "FindHome - Find Your Perfect Home",
   description: "A comprehensive real estate platform for buying, selling, and renting properties",
 }
 

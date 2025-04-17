@@ -1,6 +1,5 @@
 "use client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PropertyValuationTool from "@/components/property-valuation-tool"
 
 export default function PropertyValuationPage() {
@@ -141,16 +140,6 @@ export default function PropertyValuationPage() {
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Need Professional Help?</CardTitle>
-              <CardDescription>Connect with a local real estate expert for a personalized valuation</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700">Find an Agent</Button>
             </CardContent>
           </Card>
         </div>
