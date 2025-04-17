@@ -46,6 +46,12 @@ export default function Header() {
             <Link href="/resources" className="text-gray-600 hover:text-emerald-600 font-medium">
               Resources
             </Link>
+            <Link href="/properties/valuation" className="text-gray-600 hover:text-emerald-600 font-medium">
+              Valuation
+            </Link>
+            <Link href="/properties/compare" className="text-gray-600 hover:text-emerald-600 font-medium">
+              Compare
+            </Link>
             {user?.role === "agent" && (
               <>
                 <Link href="/properties/manage" className="text-gray-600 hover:text-emerald-600 font-medium">
@@ -97,7 +103,10 @@ export default function Header() {
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="cursor-pointer w-full">
+                      <Link
+                        href={user?.role === "admin" ? "/admin/dashboard" : "/dashboard"}
+                        className="cursor-pointer w-full"
+                      >
                         <User className="mr-2 h-4 w-4" />
                         <span>Dashboard</span>
                       </Link>
@@ -185,6 +194,20 @@ export default function Header() {
             >
               Resources
             </Link>
+            <Link
+              href="/properties/valuation"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Valuation
+            </Link>
+            <Link
+              href="/properties/compare"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Compare
+            </Link>
             {user?.role === "agent" && (
               <>
                 <Link
@@ -226,7 +249,7 @@ export default function Header() {
                 </div>
                 <div className="space-y-1">
                   <Link
-                    href="/dashboard"
+                    href={user?.role === "admin" ? "/admin/dashboard" : "/dashboard"}
                     className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >

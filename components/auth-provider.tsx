@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "Welcome back!",
       })
 
-      router.push("/dashboard")
+      router.push(data.user.role === "admin" ? "/admin/dashboard" : "/dashboard")
     } catch (error: any) {
       console.error("Login error:", error)
       toast({
