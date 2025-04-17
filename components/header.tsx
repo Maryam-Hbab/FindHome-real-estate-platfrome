@@ -46,12 +46,6 @@ export default function Header() {
             <Link href="/resources" className="text-gray-600 hover:text-emerald-600 font-medium">
               Resources
             </Link>
-            <Link href="/properties/valuation" className="text-gray-600 hover:text-emerald-600 font-medium">
-              Valuation
-            </Link>
-            <Link href="/properties/compare" className="text-gray-600 hover:text-emerald-600 font-medium">
-              Compare
-            </Link>
             {user?.role === "agent" && (
               <>
                 <Link href="/properties/manage" className="text-gray-600 hover:text-emerald-600 font-medium">

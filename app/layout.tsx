@@ -11,8 +11,15 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "FindHome - Find Your Perfect Home",
+  title: {
+    default: "RealEstate - Find Your Perfect Home",
+    template: "%s | RealEstate",
+  },
   description: "A comprehensive real estate platform for buying, selling, and renting properties",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 }
 
 export default function RootLayout({

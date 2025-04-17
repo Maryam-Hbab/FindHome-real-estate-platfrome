@@ -193,17 +193,6 @@ export default function LoginPage() {
 
           <Separator className="my-6" />
 
-          <div className="space-y-4">
-            <Button variant="outline" className="w-full">
-              Continue with Google
-            </Button>
-            <Button variant="outline" className="w-full">
-              Continue with Facebook
-            </Button>
-            <Button variant="outline" className="w-full">
-              Continue with Apple
-            </Button>
-          </div>
 
           <div className="mt-6 text-center text-sm">
             Don't have an account?{" "}

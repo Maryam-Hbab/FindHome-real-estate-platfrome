@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Home, Search, Users, MapPin, DollarSign, FileText, Bell, Calendar } from "lucide-react"
 import FeaturedProperties from "@/components/featured-properties"
+import HeroSearch from "@/components/hero-search"
 import heroImage from "@/public/images/hero-bg.jpeg"
 
 export default function HomePage() {
@@ -29,9 +30,11 @@ export default function HomePage() {
                   Browse Properties
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10">
-                  List Your Property
-                </Button>
+                <Link href="/properties/create">
+                  <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10">
+                    List Your Property
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

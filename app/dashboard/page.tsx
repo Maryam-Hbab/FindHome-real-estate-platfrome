@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AgentAnalytics } from "@/components/agent-analytics" // ADD THIS LINE
 
 interface DashboardData {
   recentProperties: any[]
@@ -146,6 +147,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {user?.role === "agent" && ( // ADD THIS SECTION
+        <AgentAnalytics agentId={user.id} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
