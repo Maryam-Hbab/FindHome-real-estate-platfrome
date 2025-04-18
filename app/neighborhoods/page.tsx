@@ -88,11 +88,9 @@ const neighborhoods = [
 // City options for filter
 const cities = [
   { value: "all", label: "All Cities" },
-  { value: "New York", label: "New York" },
-  { value: "San Francisco", label: "San Francisco" },
-  { value: "Chicago", label: "Chicago" },
-  { value: "Dallas", label: "Dallas" },
-  { value: "Miami", label: "Miami" },
+  { value: "Casablanca", label: "Casablanca" },
+  { value: "Marrakech", label: "Marrakech" },
+  { value: "Rabat", label: "Rabat" },
 ]
 
 export default function NeighborhoodsPage() {
@@ -209,7 +207,7 @@ export default function NeighborhoodsPage() {
                 <div className="flex items-center text-gray-500 mb-3">
                   <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
                   <p className="text-sm">
-                    {neighborhood.city}, {neighborhood.state}
+                    {neighborhood.city}
                   </p>
                 </div>
                 <p className="text-gray-600 mb-4 line-clamp-2">{neighborhood.description}</p>
