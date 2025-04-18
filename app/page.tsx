@@ -31,7 +31,7 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Link href="/properties/create">
-                  <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10">
+                  <Button size="lg" variant="outline" className="text-black border-white hover:bg-white/10">
                     List Your Property
                   </Button>
                 </Link>
